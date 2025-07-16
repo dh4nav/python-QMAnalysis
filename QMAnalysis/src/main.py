@@ -1,0 +1,139 @@
+import argparse
+import strictyaml as sy
+import qmanalysis.xyzreader as xr
+import qmanalysis.yamlreader as yr
+import qmanalysis.measure as mr
+from qmanalysis.containers import AtomData, TimestepData
+
+def main():
+
+  testyaml="""
+  name: Procedure Name
+  comment: XYZ
+  version: 111
+  files:
+    - path: "/workspaces/python-QMAnalysis/benzene.xyz"
+      type: xyz
+      name: benz
+    - path: "/workspaces/python-QMAnalysis/benzene.xyz"
+      type: xyz
+      name: benz2  
+    - path: "/workspaces/python-QMAnalysis/benzene.xyz"
+      type: xyz
+      name: benz3  
+  substitutions:
+    - name: S1
+      entries:
+      - file: benz
+        atom_index: 5
+      - file: benz2
+        atom_index: 4
+      - file: benz3
+        atom_index: 1
+  measurements:
+    distance:
+      - name: O-H bond
+        a: 6
+        b: 7
+      - name: Subs bond
+        a: S1
+        b: 10
+    angle:
+      - name: H-O-H
+        a: 3
+        b: 6
+        c: 7
+      - name: H-O-N
+        a: 8
+        b: 9
+        c: 10
+    dihedral:
+      - name: torsion1
+        a: 2
+        b: 3
+        c: 6
+        d: 7
+  """
+
+
+  # Example usage
+  try:
+      parser=argparse.ArgumentParser()
+      parser.add_argument("inputfile", help="Main command input file", )
+      args = parser.parse_args()
+      yamlparser = yr.YAMLFile()
+      yamlparser.load_string(testyaml)
+      #validate_measurements(data)
+  except (sy.YAMLError, ValueError) as e:
+      print(f"Validation error: {e}")
+
+
+  atom_data = AtomData()
+  timestep_data = TimestepData()
+
+  print(yamlparser.get_data())
+
+  yamldata = yamlparser.get_data()
+
+  for file in yamldata["files"]:
+    if file["type"].lower() == "xyz":
+      xr.XYZFile(atom_data, timestep_data, file_path = file["path"], file_name = file["name"])
+  print(atom_data.dataframe)
+  print(timestep_data.dataframe)
+
+  if "substitutions" in yamldata:
+    for sub in yamldata["substitutions"]:
+       for subfile in sub['entries']:
+          #mask = (atom_data.dataframe["file_name"] == subfile['file']) & (atom_data.dataframe["atom_index"] == subfile['atom_index'])
+          #atom_data.dataframe[mask, ["alias"]] == 777
+          atom_data.dataframe.loc[(atom_data.dataframe["file_name"] == subfile['file']) & (atom_data.dataframe["atom_index"] == subfile['atom_index']), "alias"] = sub["name"]
+  
+  print(atom_data.dataframe)
+
+  timestep_names = timestep_data.dataframe.loc[:,"file_name"].to_numpy()
+
+  print(timestep_names)
+
+  measure = mr.Measure()
+
+  if "measurements" in yamldata:
+    if "distance" in yamldata["measurements"]:
+       for distance in yamldata["measurements"]["distance"]:
+          for timestep_name in timestep_names:
+             print(distance)
+             timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements']["a"] = 5
+             print(timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements'][0])
+             timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements'][distance['name']] = measure.distance(
+                atom_data=atom_data, 
+                atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(distance['a'])  )].index[0],
+                atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(distance['b'])  )].index[0])
+          
+    if "angle" in yamldata["measurements"]:
+       for angle in yamldata["measurements"]["angle"]:
+          for timestep_name in timestep_names:
+             timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements'][angle['name']] = measure.angle(
+                atom_data=atom_data, 
+                atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(angle['a']))].index[0],
+                atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(angle['b']))].index[0],
+                atom_index3=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(angle['c']))].index[0])
+
+    if "dihedral" in yamldata["measurements"]:
+       for dihedral in yamldata["measurements"]["dihedral"]:
+          for timestep_name in timestep_names:
+             timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements'][dihedral['name']] = measure.dihedral(
+                atom_data=atom_data, 
+                atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['a']))].index[0],
+                atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['b']))].index[0],
+                atom_index3=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['c']))].index[0],
+                atom_index4=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['d']))].index[0])
+  
+  print(atom_data.dataframe)
+  print(timestep_data.dataframe)
+  # 
+
+  # print(measure.distance([1.0,1.0,1.0],[0.0,1.0,1.0]))
+
+  # print(measure.angle([1.0,0.0,0.0],[0.0,0.0,0.0],[1.0,0.0,1.0]))
+
+  # print(measure.dihedral([1.0,0.0,0.0],[0.0,0.0,0.0],[0.0,1.0,0.0],[-1.0,1.0,1.0]))
+
