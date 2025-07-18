@@ -54,6 +54,10 @@ def main():
         b: 3
         c: 6
         d: 7
+  output:
+    - file:
+      - path: ../out.csv
+        type: csv
   """
 
 
@@ -144,5 +148,16 @@ def main():
   print(md.dataframe)
   print(atom_data.dataframe)
   print(timestep_data.dataframe)
+  print(yamldata['output'])
+  if 'file' in yamldata['output'][0]:
+     print(yamldata['output'])
+     for file in yamldata['output'][0]['file']:
+        print(file)
+        if file['type'].lower() == "csv":
+           md.dataframe.to_csv(file['path'])
+        else:
+           raise IndexError(f"{file['type']}: Unknown file type")
+ # if "graphics" in yamldata['output']:
+
   plot = md.dataframe.plot.scatter(x="distance-O-H-bond", y="distance-Subs-bond")
   plt.show()

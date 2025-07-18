@@ -1,5 +1,8 @@
 import pytest
-from qmanalysis.yamlreader import YAMLFile  # Passe den Import an dein Projekt an
+from qmanalysis.yamlreader import YAMLFile  # adjust to your module path
+import strictyaml as sy
+
+# --- Valid test YAML strings ---
 
 valid_yaml = """
 name: test_project
@@ -10,10 +13,14 @@ files:
   - path: "data/file1.xyz"
     type: "xyz"
 
-graphics:
-  - plot:
-      name: "main_plot"
-      identifier: "S1"
+output:
+  - graphics:
+      - plot:
+          name: "main_plot"
+          identifier: "S1"
+    file:
+      - path: "output/results.dat"
+        type: "text"
 """
 
 yaml_with_measurements = """
@@ -25,10 +32,11 @@ files:
   - path: "example.xyz"
     type: "xyz"
 
-graphics:
-  - plot:
-      name: "plot1"
-      identifier: 1
+output:
+  - graphics:
+      - plot:
+          name: "plot1"
+          identifier: 1
 
 measurements:
   distance:
@@ -55,18 +63,21 @@ files:
   - path: "data/file1.xyz"
     type: "xyz"
 
-graphics:
-  - plot:
-      name: "main_plot"
-      identifier: "S1"
+output:
+  - graphics:
+      - plot:
+          name: "main_plot"
+          identifier: "S1"
 """
+
+# --- Tests ---
 
 def test_load_string_valid_yaml():
     yml = YAMLFile().load_string(valid_yaml)
     data = yml.get_data()
     assert data["name"] == "test_project"
     assert data["files"][0]["type"] == "xyz"
-    assert data["graphics"][0]["plot"]["identifier"] == "S1"
+    assert data["output"][0]["graphics"][0]["plot"]["identifier"] == "S1"
 
 def test_load_string_with_measurements():
     yml = YAMLFile().load_string(yaml_with_measurements)
@@ -81,7 +92,7 @@ def test_str_method():
     assert str(yml) == valid_yaml
 
 def test_invalid_yaml_raises():
-    with pytest.raises(Exception):
+    with pytest.raises(sy.YAMLValidationError):
         YAMLFile().load_string(invalid_yaml_missing_required)
 
 def test_data_return_type():
@@ -89,140 +100,22 @@ def test_data_return_type():
     data = yml.get_data()
     assert isinstance(data, dict)
 
+def test_loading_from_file(tmp_path):
+    file = tmp_path / "test.yaml"
+    file.write_text(valid_yaml)
+    yml = YAMLFile().load_file(file)
+    data = yml.get_data()
+    assert data["version"] == 1
+    assert str(yml) == valid_yaml
 
-# import unittest
-# from collections import OrderedDict
-# import tempfile
-# import os
-# import strictyaml as sy
+def test_malformed_yaml_raises():
+    bad_yaml = "name: test\nfiles: [\n - path: \"bad\""  # missing closing brackets
+    with pytest.raises(sy.YAMLError):
+        YAMLFile().load_string(bad_yaml)
 
-# # Assuming the YAMLFile class is defined in yamlreader.py
-# from qmanalysis.yamlreader import YAMLFile
-
-
-# class TestYAMLFile(unittest.TestCase):
-
-#     def setUp(self):
-#         # Create valid yaml content
-#         self.valid_yaml = testyaml="""name: Procedure Name
-# comment: XYZ
-# version: 111
-# substitutions:
-#   - S1:
-#     - 
-#       file: abc/cde.xyz
-#       atom: 25 
-#     - 
-#       file: abab/fff.xyz
-#       atom: 19
-# sequences:
-#   - 1:
-#     - abcd
-#     - xyza.bla
-# measurements:
-#   distance:
-#     - name: O-H bond
-#       a: 25
-#       b: S1
-#   angle:
-#     - name: H-O-H
-#       a: S2
-#       b: 3
-#       c: 4
-#     - name: H-O-N
-#       a: S2
-#       b: S5
-#       c: 4
-#   dihedral:
-#     - name: torsion1
-#       a: 1
-#       b: 2
-#       c: 3
-#       d: S3
-# """
-
-#         self.bad_yaml = testyaml="""name: Procedure Name
-# comment: XYZ
-# version: 111
-# substitutions:
-#   - S1:
-#     - 
-#       file: abc/cde.xyz
-#       atom: 25 
-#     - 
-#       file: abab/fff.xyz
-#       atom: 19
-# sequences:
-#   - 1:
-#     - abcd
-#     - xyza.bla
-# measurements:
-#   -distance:
-#     - name: O-H bond
-#       a: 25
-#       b: S1
-#   angle:
-#     - name: H-O-H
-#       a: S2
-#       b: 3
-#       c: 4
-#     - name: H-O-N
-#       a: S2
-#       b: S5
-#       c: 4
-#   dihedral:
-#     - name: torsion1
-# a: 1
-#       b: 2
-#       c: 3
-#       d: S3
-# """
-#         self.tempfile = tempfile.NamedTemporaryFile(delete=False, mode='w+', suffix='.yaml')
-#         self.tempfile.write(self.valid_yaml)
-#         self.tempfile.close()
-
-#     def tearDown(self):
-#         os.remove(self.tempfile.name)
-
-#     def test_str_file(self):
-#         yaml = YAMLFile()
-#         yaml.load_file(self.tempfile.name)
-#         self.assertEqual(str(yaml), self.valid_yaml)
-
-#     def test_str_string(self):
-#         yaml = YAMLFile()
-#         yaml.load_string(self.valid_yaml)
-#         self.assertEqual(str(yaml), self.valid_yaml)
-
-#     def test_parsed_file(self):
-#         yaml = YAMLFile()
-#         yaml.load_file(self.tempfile.name)
-#         expected = dict({'name': 'Procedure Name', 'comment': 'XYZ', 'version': 111, 'substitutions': [{'S1': [{'file': 'abc/cde.xyz', 'atom': 25}, {'file': 'abab/fff.xyz', 'atom': 19}]}], 'sequences': [{'1': ['abcd', 'xyza.bla']}], 'measurements': {'distance': [{'name': 'O-H bond', 'a': '25', 'b': 'S1'}], 'angle': [{'name': 'H-O-H', 'a': 'S2', 'b': '3', 'c': '4'}, {'name': 'H-O-N', 'a': 'S2', 'b': 'S5', 'c': '4'}], 'dihedral': [{'name': 'torsion1', 'a': '1', 'b': '2', 'c': '3', 'd': 'S3'}]}})
-        
-#         self.assertEqual(yaml.get_data(), expected)
-
-#     def test_parsed_string(self):
-#         yaml = YAMLFile()
-#         yaml.load_string(self.valid_yaml)
-#         expected = dict({'name': 'Procedure Name', 'comment': 'XYZ', 'version': 111, 'substitutions': [{'S1': [{'file': 'abc/cde.xyz', 'atom': 25}, {'file': 'abab/fff.xyz', 'atom': 19}]}], 'sequences': [{'1': ['abcd', 'xyza.bla']}], 'measurements': {'distance': [{'name': 'O-H bond', 'a': '25', 'b': 'S1'}], 'angle': [{'name': 'H-O-H', 'a': 'S2', 'b': '3', 'c': '4'}, {'name': 'H-O-N', 'a': 'S2', 'b': 'S5', 'c': '4'}], 'dihedral': [{'name': 'torsion1', 'a': '1', 'b': '2', 'c': '3', 'd': 'S3'}]}})
-        
-#         self.assertEqual(yaml.get_data(), expected)
-
-
-#     def test_invalid_yaml_file(self):
-#         with tempfile.NamedTemporaryFile(delete=False, mode='w+') as f:
-#             f.write(self.bad_yaml)
-#             f.close()
-#             with self.assertRaises(sy.ruamel.scanner.ScannerError):
-#                 yaml = YAMLFile()
-#                 yaml.load_file(f.name)
-#             os.remove(f.name)
-
-#     def test_invalid_yaml_string(self):
-#         with self.assertRaises(sy.ruamel.scanner.ScannerError):
-#             yaml = YAMLFile()
-#             yaml.load_string(self.bad_yaml)
-
-
-# if __name__ == '__main__':
-#     unittest.main()
+def test_output_file_section():
+    yml = YAMLFile().load_string(valid_yaml)
+    output = yml.get_data()["output"][0]
+    assert "file" in output
+    assert output["file"][0]["path"] == "output/results.dat"
+    assert output["file"][0]["type"] == "text"
