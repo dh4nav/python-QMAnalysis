@@ -5,9 +5,7 @@ from itertools import combinations
 class Measure:
 
     def _checkEqual(self, dataframe):
-        print(list(combinations(range(len(dataframe.index)),2)))
         for comb in combinations(range(len(dataframe.index)),2):
-            print(comb)
             if dataframe.iloc[comb[0]].equals(dataframe.iloc[comb[1]]):
                 raise ValueError("Atom coordinates for atom " +str(comb[0])+ " and atom " +str(comb[1])+ " can not be equal")
             

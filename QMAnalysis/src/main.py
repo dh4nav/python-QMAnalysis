@@ -3,7 +3,7 @@ import strictyaml as sy
 import qmanalysis.xyzreader as xr
 import qmanalysis.yamlreader as yr
 import qmanalysis.measure as mr
-from qmanalysis.containers import AtomData, TimestepData
+from qmanalysis.containers import AtomData, TimestepData, MeasurementData
 
 def main():
 
@@ -32,10 +32,10 @@ def main():
         atom_index: 1
   measurements:
     distance:
-      - name: O-H bond
+      - name: O-H-bond
         a: 6
         b: 7
-      - name: Subs bond
+      - name: Subs-bond
         a: S1
         b: 10
     angle:
@@ -96,44 +96,50 @@ def main():
 
   measure = mr.Measure()
 
+  md = MeasurementData(timestep_names)
+
+  print("X")
+
+  temp_array = []
+
   if "measurements" in yamldata:
     if "distance" in yamldata["measurements"]:
        for distance in yamldata["measurements"]["distance"]:
+          print(distance)
+          temp_array = []
           for timestep_name in timestep_names:
-             print(distance)
-             timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements']["a"] = 5
-             print(timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements'][0])
-             timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements'][distance['name']] = measure.distance(
+            temp_array.append(measure.distance(
                 atom_data=atom_data, 
                 atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(distance['a'])  )].index[0],
-                atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(distance['b'])  )].index[0])
+                atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(distance['b'])  )].index[0]))
+          md.dataframe["distance-"+distance["name"]] = temp_array
+          print(md.dataframe)
           
     if "angle" in yamldata["measurements"]:
        for angle in yamldata["measurements"]["angle"]:
+          print(angle)
+          temp_array = []
           for timestep_name in timestep_names:
-             timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements'][angle['name']] = measure.angle(
+            temp_array.append(measure.angle(
                 atom_data=atom_data, 
                 atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(angle['a']))].index[0],
                 atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(angle['b']))].index[0],
-                atom_index3=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(angle['c']))].index[0])
-
+                atom_index3=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(angle['c']))].index[0]))
+          md.dataframe["angle-"+angle["name"]] = temp_array
     if "dihedral" in yamldata["measurements"]:
        for dihedral in yamldata["measurements"]["dihedral"]:
+          print(dihedral)
+          temp_array = []
           for timestep_name in timestep_names:
-             timestep_data.dataframe.loc[timestep_data.dataframe["file_name"] == timestep_name, 'measurements'][dihedral['name']] = measure.dihedral(
+            temp_array.append(measure.dihedral(
                 atom_data=atom_data, 
                 atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['a']))].index[0],
                 atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['b']))].index[0],
                 atom_index3=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['c']))].index[0],
-                atom_index4=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['d']))].index[0])
-  
+                atom_index4=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['d']))].index[0]))
+          md.dataframe["dihedral-"+dihedral["name"]] = temp_array
+  print(md.dataframe)
   print(atom_data.dataframe)
   print(timestep_data.dataframe)
-  # 
-
-  # print(measure.distance([1.0,1.0,1.0],[0.0,1.0,1.0]))
-
-  # print(measure.angle([1.0,0.0,0.0],[0.0,0.0,0.0],[1.0,0.0,1.0]))
-
-  # print(measure.dihedral([1.0,0.0,0.0],[0.0,0.0,0.0],[0.0,1.0,0.0],[-1.0,1.0,1.0]))
+  md.dataframe.plot.scatter(x="distance-O-H-bond", y="distance-Subs-bond")
 

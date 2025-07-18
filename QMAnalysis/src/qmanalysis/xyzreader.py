@@ -1,56 +1,84 @@
-from collections import OrderedDict
-from pathlib import PurePath
 import pandas as pd
+from pathlib import Path
 
-class XYZFile():
-    def __init__(self, atom_data, timestep_data, file_path, file_name = None):
+class XYZFile:
+    def __init__(self, atom_data, timestep_data, file_path):
+        self.atom_data = atom_data
+        self.timestep_data = timestep_data
+        self.file_path = file_path
 
-        with open(file_path, "r", encoding="utf-8") as f:
-            raw_data = f.read()
+        self._read_xyz()
 
-        if file_name is None:
-            file_name = PurePath(file_path).name
+    def _read_xyz(self):
+        path = Path(self.file_path)
+        with path.open('r') as f:
+            lines = [line.strip() for line in f if line.strip()]
 
-        lines = raw_data.strip().splitlines()
+        if len(lines) < 2:
+            raise ValueError(f"{self.file_path}: File too short, missing atom count or comment line.")
 
-        if len(lines) != int(lines[0])+2:
-            raise IndexError("Number of Lines does not match number of atoms in line two")
+        try:
+            atom_count = int(lines[0])
+        except ValueError:
+            raise ValueError(f"{self.file_path}: First line must be an integer (atom count). Got: {lines[0]}")
 
-        file_index = len(timestep_data.dataframe)
+        comment = lines[1]
+        atom_lines = lines[2:]
 
-        timestep_data.dataframe.loc[file_index] = {
-            "file_name": file_name, 
-            "file_path": file_path, 
-            "timestep_time": pd.NA, 
-            "timestep_index": pd.NA, 
-            "raw_data": raw_data, 
-            "energy": pd.NA, 
-            "zero-point energy": pd.NA,
-            "file_comment": lines[1], 
+        print(len(atom_lines))
+        print(atom_count)
+
+
+        if len(atom_lines) != atom_count:
+            print(f"{self.file_path}: Expected {atom_count} atom lines, but got {len(atom_lines)}")
+            raise IndexError(f"{self.file_path}: Expected {atom_count} atom lines, but got {len(atom_lines)}")
+
+        # Add entry to timestep_data
+        timestep_index = len(self.timestep_data.dataframe)
+        self.timestep_data.dataframe.loc[timestep_index] = {
+            "file_name": path.name,
+            "file_path": str(path),
+            "timestep_time": None,
+            "timestep_index": timestep_index,
+            "raw_data": "\n".join(lines),
+            "energy": None,
+            "zero-point energy": None,
+            "file_comment": comment,
             "measurements": {}
+        }
+
+        file_index = timestep_index  # assuming 1 file = 1 timestep
+
+        for atom_index, line in enumerate(atom_lines[:atom_count]):
+            tokens = line.split()
+            if len(tokens) < 4:
+                raise ValueError(
+                    f"{self.file_path}: Malformed atom line {atom_index + 3} (expected ≥4 tokens): {line}"
+                )
+
+            element, x, y, z = tokens[:4]
+            try:
+                x, y, z = float(x), float(y), float(z)
+            except ValueError:
+                raise ValueError(
+                    f"{self.file_path}: Coordinates must be numeric in line {atom_index + 3}: {line}"
+                )
+
+            # Optional: alias and charge
+            alias = tokens[4] if len(tokens) > 4 else None
+            charge = float(tokens[5]) if len(tokens) > 5 else None
+
+            self.atom_data.dataframe.loc[len(self.atom_data.dataframe)] = {
+                "file_name": path.name,
+                "file_path": str(path),
+                "file_index": file_index,
+                "atom_index": atom_index,
+                "element": element,
+                "x": x,
+                "y": y,
+                "z": z,
+                "alias": alias,
+                "charge": charge,
+                "timestep_time": None,
+                "timestep_index": timestep_index
             }
-        
-        first_atom_index = len(atom_data.dataframe)
-
-        for atom_index in range(int(lines[0])):
-            elements = lines[atom_index+2].strip().split()
-            if len(elements) != 4:
-                raise ValueError(f"Line {atom_index+2} must have 4 fields: element x y z")
-            atom_data.dataframe.loc[first_atom_index+atom_index] = {
-            "file_name": file_name, 
-            "file_path": file_path,
-            "file_index": file_index,
-            "atom_index": (atom_index),
-            "element": elements[0],
-            "x": float(elements[1]),
-            "y": float(elements[2]),
-            "z": float(elements[3]),
-            "alias": str(atom_index),
-            "charge": pd.NA,
-            "timestep_time": pd.NA, 
-            "timestep_index": pd.NA,     
-            }
-
-
-
-
