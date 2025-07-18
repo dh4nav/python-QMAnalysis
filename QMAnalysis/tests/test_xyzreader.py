@@ -55,7 +55,7 @@ def test_xyzfile_parsing(tmp_path, xyz_file_content, dummy_atom_data, dummy_time
     assert len(df) == 3
     assert list(df["element"]) == ["H", "C", "O"]
     assert df.iloc[1]["x"] == 1.0
-    assert pd.isna(df.iloc[0]["alias"])
+    assert df.iloc[0]["alias"] == str(df.iloc[0]["atom_index"])
     assert pd.isna(df.iloc[0]["charge"])
 
 def test_optional_alias_and_charge(tmp_path, dummy_atom_data, dummy_timestep_data):
