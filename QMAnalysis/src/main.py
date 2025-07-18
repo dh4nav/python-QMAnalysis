@@ -4,6 +4,7 @@ import qmanalysis.xyzreader as xr
 import qmanalysis.yamlreader as yr
 import qmanalysis.measure as mr
 from qmanalysis.containers import AtomData, TimestepData, MeasurementData
+import matplotlib.pyplot as plt
 
 def main():
 
@@ -144,4 +145,4 @@ def main():
   print(atom_data.dataframe)
   print(timestep_data.dataframe)
   plot = md.dataframe.plot.scatter(x="distance-O-H-bond", y="distance-Subs-bond")
-
+  plt.show()
