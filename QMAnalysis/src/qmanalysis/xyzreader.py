@@ -2,16 +2,21 @@ import pandas as pd
 from pathlib import Path
 
 class XYZFile:
-    def __init__(self, atom_data, timestep_data, file_path):
+    def __init__(self, atom_data, timestep_data, file_path, file_name = None):
         self.atom_data = atom_data
         self.timestep_data = timestep_data
         self.file_path = file_path
+        self.path = path = Path(self.file_path)
+        if file_name:
+            self.file_name = file_name 
+        else:
+            self.file_name = self.path.name
+
 
         self._read_xyz()
 
     def _read_xyz(self):
-        path = Path(self.file_path)
-        with path.open('r') as f:
+        with self.path.open('r') as f:
             lines = [line.strip() for line in f if line.strip()]
 
         if len(lines) < 2:
@@ -36,8 +41,8 @@ class XYZFile:
         # Add entry to timestep_data
         timestep_index = len(self.timestep_data.dataframe)
         self.timestep_data.dataframe.loc[timestep_index] = {
-            "file_name": path.name,
-            "file_path": str(path),
+            "file_name": self.file_name,
+            "file_path": str(self.path),
             "timestep_time": None,
             "timestep_index": timestep_index,
             "raw_data": "\n".join(lines),
@@ -69,8 +74,8 @@ class XYZFile:
             charge = float(tokens[5]) if len(tokens) > 5 else None
 
             self.atom_data.dataframe.loc[len(self.atom_data.dataframe)] = {
-                "file_name": path.name,
-                "file_path": str(path),
+                "file_name": self.file_name,
+                "file_path": str(self.path),
                 "file_index": file_index,
                 "atom_index": atom_index,
                 "element": element,
