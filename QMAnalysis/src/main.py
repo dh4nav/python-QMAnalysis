@@ -143,5 +143,5 @@ def main():
   print(md.dataframe)
   print(atom_data.dataframe)
   print(timestep_data.dataframe)
-  md.dataframe.plot.scatter(x="distance-O-H-bond", y="distance-Subs-bond")
+  plot = md.dataframe.plot.scatter(x="distance-O-H-bond", y="distance-Subs-bond")
 
