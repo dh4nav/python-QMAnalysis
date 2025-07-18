@@ -12,13 +12,13 @@ def main():
   comment: XYZ
   version: 111
   files:
-    - path: "/workspaces/python-QMAnalysis/benzene.xyz"
+    - path: "../benzene.xyz"
       type: xyz
       name: benz
-    - path: "/workspaces/python-QMAnalysis/benzene.xyz"
+    - path: "../benzene.xyz"
       type: xyz
       name: benz2  
-    - path: "/workspaces/python-QMAnalysis/benzene.xyz"
+    - path: "../benzene.xyz"
       type: xyz
       name: benz3  
   substitutions:
@@ -105,9 +105,11 @@ def main():
   if "measurements" in yamldata:
     if "distance" in yamldata["measurements"]:
        for distance in yamldata["measurements"]["distance"]:
-          print(distance)
+          print(distance['a'])
           temp_array = []
           for timestep_name in timestep_names:
+            print(timestep_name)
+            print(atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(distance['a'])  )])
             temp_array.append(measure.distance(
                 atom_data=atom_data, 
                 atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(distance['a'])  )].index[0],
