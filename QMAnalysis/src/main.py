@@ -58,6 +58,11 @@ def main():
     - file:
       - path: ../out.csv
         type: csv
+    - graph:
+      - type: scatter_plot
+        x: distance-Subs-bond
+        y: angle-H-O-N 
+        file: ../SB-HON.tiff
   """
 
 
@@ -67,7 +72,8 @@ def main():
       parser.add_argument("inputfile", help="Main command input file", )
       args = parser.parse_args()
       yamlparser = yr.YAMLFile()
-      yamlparser.load_string(testyaml)
+      #yamlparser.load_string(testyaml)
+      yamlparser.load_file(args.inputfile)
       #validate_measurements(data)
   except (sy.YAMLError, ValueError) as e:
       print(f"Validation error: {e}")
@@ -149,19 +155,28 @@ def main():
   print(atom_data.dataframe)
   print(timestep_data.dataframe)
   print(yamldata['output'])
-  if 'file' in yamldata['output'][0]:
-     print(yamldata['output'])
-     for file in yamldata['output'][0]['file']:
-        print(file)
-        if file['type'].lower() == "csv":
-           md.dataframe.to_csv(file['path'])
-        else:
-           raise IndexError(f"{file['type']}: Unknown file type")
+  for one_output in yamldata['output']:
+    if 'file' in one_output:
+      print(one_output)
+      for file in one_output['file']:
+          print(file)
+          if file['type'].lower() == "csv":
+            md.dataframe.to_csv(file['path'])
+          else:
+            raise IndexError(f"{file['type']}: Unknown file type")
  # if "graphics" in yamldata['output']:
-  print(yamldata['output'])
-  if 'graph' in yamldata['output'][0]:
-     print(yamldata['output'])
-     for file in yamldata['output'][0]['graph']:
-        if file['type'].lower() == "scatter_plot":
-          plot = md.dataframe.plot.scatter(x=file['x'], y=file['y'])
-          plt.show()
+    print("Z0")
+    if 'graph' in one_output:
+      print("Z1")
+      for graph in one_output['graph']:
+          if graph['type'].lower() == "scatter_plot":
+            print("Z")
+            #alt:
+            #fig, ax = plt.subplots(figsize=graph.get("figsize", (8, 6)))  # default figsize
+            #df.plot(x='x', y='y', ax=ax)
+
+            plot = md.dataframe.plot.scatter(x=graph['x'], y=graph['y'])
+            #plt.show()
+            fig = plot.get_figure()
+            fig.savefig(graph['file'], dpi=graph.get("dpi", 300), format=graph.get("file_format", "tiff"))
+

@@ -96,12 +96,17 @@ class YAMLFile:
 
             "output": Seq(
                 Map({
-                    Optional("graphics"): Seq(
+                    Optional("graph"): Seq(
                         Map({
-                            "plot": Map({
-                                "name": Str(),
-                                "identifier": identifier
-                            })
+                            "type": Str(),
+                            Optional("name"): Str(),
+                            "x": identifier,
+                            "y": identifier,
+                            Optional("dpi"): Int(),
+                            "file": Str(),
+                            Optional("file_format"): Str(),
+                            Optional("y_label"): Str(),
+                            Optional("x_label"): Str()
                         })
                     ),
                     Optional("file"): Seq(
