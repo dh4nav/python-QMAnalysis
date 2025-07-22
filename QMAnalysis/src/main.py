@@ -158,6 +158,10 @@ def main():
         else:
            raise IndexError(f"{file['type']}: Unknown file type")
  # if "graphics" in yamldata['output']:
-
-  plot = md.dataframe.plot.scatter(x="distance-O-H-bond", y="distance-Subs-bond")
-  plt.show()
+  print(yamldata['output'])
+  if 'graph' in yamldata['output'][0]:
+     print(yamldata['output'])
+     for file in yamldata['output'][0]['graph']:
+        if file['type'].lower() == "scatter_plot":
+          plot = md.dataframe.plot.scatter(x=file['x'], y=file['y'])
+          plt.show()
