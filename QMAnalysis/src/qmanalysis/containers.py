@@ -20,3 +20,11 @@ class MeasurementData:
         self.dataframe = pd.DataFrame({"file_name": timestep_names}, index=list(range(len(timestep_names)))) #indexlist, )
     
         print(self.dataframe)
+
+class PerAtomData:
+    def __init__(self, csv):
+        self.dataframe = pd.read_csv(csv)
+
+class GlobalData:
+    def __init__(self, csv):
+        self.dataframe = pd.read_csv(csv)

@@ -6,6 +6,19 @@ import qmanalysis.measure as mr
 from qmanalysis.containers import AtomData, TimestepData, MeasurementData
 import matplotlib.pyplot as plt
 
+from pathlib import Path
+
+def prepend_root_if_relative(file_path, root_path=None):
+    """
+    Prepend `root_path` to `file_path` if `file_path` is not absolute.
+    Returns a Path object.
+    """
+    file_path = Path(file_path)
+    if file_path.is_absolute() or root_path is None:
+        return file_path
+    else:
+        return Path(root_path) / file_path
+
 def main():
 
   testyaml="""
@@ -68,15 +81,43 @@ def main():
 
   # Example usage
   try:
-      parser=argparse.ArgumentParser()
-      parser.add_argument("inputfile", help="Main command input file", )
-      args = parser.parse_args()
-      yamlparser = yr.YAMLFile()
-      #yamlparser.load_string(testyaml)
-      yamlparser.load_file(args.inputfile)
-      #validate_measurements(data)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("inputfile", help="Main command input file")
+
+    # Add -ac / --atom-constants argument (multiple allowed)
+    parser.add_argument(
+        "-ac", "--atom_constants",
+        action="append",
+        type=str,
+        help="Path to file defining atom-level constants. Can be specified multiple times."
+    )
+
+    # Add -gc / --global-constants argument (multiple allowed)
+    parser.add_argument(
+        "-gc", "--global_constants",
+        action="append",
+        type=str,
+        help="Path to file defining global constants. Can be specified multiple times."
+    )
+
+    # Add -rp / --root-path argument (single allowed — default behavior)
+    parser.add_argument(
+        "-rp", "--root_path",
+        type=str,
+        help="Root path used for all files. If none is specified, the location of the input file is used as root path"
+    )
+
+    args = parser.parse_args()
+
+    if "root-path" in args:
+      args["root_path"] = path.cwd()
+
+    yamlparser = yr.YAMLFile()
+    #yamlparser.load_string(testyaml)
+    yamlparser.load_file(prepend_root_if_relative(file_path=args.inputfile, root_path=args.root_path))
+    #validate_measurements(data)
   except (sy.YAMLError, ValueError) as e:
-      print(f"Validation error: {e}")
+    print(f"Validation error: {e}")
 
 
   atom_data = AtomData()
@@ -88,7 +129,7 @@ def main():
 
   for file in yamldata["files"]:
     if file["type"].lower() == "xyz":
-      xr.XYZFile(atom_data, timestep_data, file_path = file["path"], file_name = file["name"])
+      xr.XYZFile(atom_data, timestep_data, file_path = prepend_root_if_relative(file_path=file["path"], root_path=args.root_path), file_name = file["name"])
   print(atom_data.dataframe)
   print(timestep_data.dataframe)
 
@@ -161,7 +202,7 @@ def main():
       for file in one_output['file']:
           print(file)
           if file['type'].lower() == "csv":
-            md.dataframe.to_csv(file['path'])
+            md.dataframe.to_csv(prepend_root_if_relative(file_path=file['path'], root_path=args.root_path))
           else:
             raise IndexError(f"{file['type']}: Unknown file type")
  # if "graphics" in yamldata['output']:
@@ -178,5 +219,5 @@ def main():
             plot = md.dataframe.plot.scatter(x=graph['x'], y=graph['y'])
             #plt.show()
             fig = plot.get_figure()
-            fig.savefig(graph['file'], dpi=graph.get("dpi", 300), format=graph.get("file_format", "tiff"))
+            fig.savefig(prepend_root_if_relative(file_path=graph['file'], root_path=args.root_path), dpi=graph.get("dpi", 300), format=graph.get("file_format", "tiff"))
 
