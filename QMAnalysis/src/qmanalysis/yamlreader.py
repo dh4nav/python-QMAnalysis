@@ -27,7 +27,7 @@ class YAMLFile:
         return self.data
 
     def _schema(self):
-        from strictyaml import Map, Seq, Str, Int, MapPattern, Optional, Regex
+        from strictyaml import Map, Seq, Str, Int, MapPattern, Optional, Regex, Bool
 
 
         identifier = Str() | Int()
@@ -43,7 +43,8 @@ class YAMLFile:
                     "path": Str(),
                     Optional("name"): Str(),
                     "type": Str(),
-                    Optional("options"): Str() | Int() | MapPattern(Str(), Str())  # adjust as needed
+                    Optional("options"): Str() | Int() | MapPattern(Str(), Str()),  # adjust as needed
+                    Optional("glob"): Bool()
                 })
             ),
 
@@ -54,7 +55,8 @@ class YAMLFile:
                         Map({
                             "file": Str(),
                             #"identifier": identifier,
-                            "atom_index": Int()
+                            "atom_index": Int(),
+                            Optional("glob"): Bool()
                         })
                     )
                 })

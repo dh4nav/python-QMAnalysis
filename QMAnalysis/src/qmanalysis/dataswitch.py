@@ -19,7 +19,7 @@ class DotNamespace:
                 return value
         raise AttributeError(f"'{name}' not found in DotNamespace.")
 
-class DataSwitch(Interpreter):
+class DataSwitch(av.Interpreter):
     def __init__(self, dataframe, atom_constants=None, global_constants=None):
         # Wrap each dataframe (or nested dicts of dfs) in DotNamespace
         d = {"data": dataframe}

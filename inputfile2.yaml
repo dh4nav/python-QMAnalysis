@@ -2,24 +2,21 @@ name: Procedure Name
 comment: XYZ
 version: 111
 files:
-  - path: "./benzene.xyz"
+  - path: "benzene*.xyz"
     type: xyz
-    name: benz
-  - path: "./benzene.xyz"
+    name: benz-
+    glob: True
+  - path: bx.xyz
     type: xyz
-    name: benz2  
-  - path: "./benzene.xyz"
-    type: xyz
-    name: benz3  
+    name: bxyz
 substitutions:
   - name: S1
     entries:
-    - file: benz
+    - file: benz-*
       atom_index: 5
-    - file: benz2
-      atom_index: 4
-    - file: benz3
-      atom_index: 1
+      glob: True
+    - file: bxyz
+      atom_index: 8 
 measurements:
   distance:
     - name: O-H-bond
@@ -34,7 +31,7 @@ measurements:
       b: 6
       c: 7
     - name: H-O-N
-      a: 8
+      a: 11
       b: 9
       c: 10
   dihedral:
