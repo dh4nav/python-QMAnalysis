@@ -1,0 +1,53 @@
+// {
+//   "version": "0.2.0",
+//   "configurations": [
+//     {
+//       "name": "Poetry Debug",
+//       "type": "python",
+//       "request": "launch",
+//       "program": "${workspaceFolder}/src/main.py ${workspaceFolder}/inputfile.yaml",  // Replace with your entry point
+//       "console": "integratedTerminal",
+//       "envFile": "${workspaceFolder}/.env",
+//       "python": "/home/vscode/.cache/pypoetry/virtualenvs/qmanalysis-6Jt_PQMe-py3.12/bin/python"
+//     }
+//   ]
+// }
+// {
+//   "version": "0.2.0",
+//   "configurations": [
+//     {
+//       "name": "Poetry: Run myscript",
+//       "type": "python",
+//       "request": "launch",
+//       "module": "main",               // the real module path
+//       "args": ["inputfile.yaml"],           // arguments you would normally pass
+//       "console": "integratedTerminal",
+//       "justMyCode": false,
+//       //"envFile": "${workspaceFolder}/.env",
+//       "cwd": "${workspaceFolder}",
+//       "env": {
+//         "PYTHONPATH": "${workspaceFolder}/src"
+//       },
+//       "python": "/home/vscode/.cache/pypoetry/virtualenvs/qmanalysis-6Jt_PQMe-py3.12/bin/python" // replace with output of `poetry env info --path` + `/bin/python`
+//     }
+//   ]
+// }
+ {
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Module",
+            "type": "python",
+            "request": "launch",
+            "module": "main",
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}",
+            "args": [ "inputfile.yaml"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            },
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/qmanalysis-6Jt_PQMe-py3.12/bin/python"
+        },
+    ]
+}

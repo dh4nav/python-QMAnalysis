@@ -3,21 +3,21 @@ from collections import OrderedDict
 
 
 class YAMLFile:
-    def load_file(self, filepath):
+    def load_file(self, filepath: str):
         self.filepath = filepath
         with open(filepath, "r", encoding="utf-8") as f:
             self.raw = f.read()
 
         self.parsed = sy.load(self.raw, self._schema())
         self.data = self.parsed.data
-        #self._validate_measurements()
+        # self._validate_measurements()
         return self
 
     def load_string(self, yamlstring):
         self.raw = yamlstring
         self.parsed = sy.load(self.raw, self._schema())
         self.data = self.parsed.data
-        #self._validate_measurements()
+        # self._validate_measurements()
         return self
 
     def __str__(self):
@@ -28,7 +28,6 @@ class YAMLFile:
 
     def _schema(self):
         from strictyaml import Map, Seq, Str, Int, MapPattern, Optional, Regex, Bool
-
 
         identifier = Str() | Int()
         valid_substitution = Regex(r"S\d+")
@@ -43,7 +42,8 @@ class YAMLFile:
                     "path": Str(),
                     Optional("name"): Str(),
                     "type": Str(),
-                    Optional("options"): Str() | Int() | MapPattern(Str(), Str()),  # adjust as needed
+                    # adjust as needed
+                    Optional("options"): Str() | Int() | MapPattern(Str(), Str()),
                     Optional("glob"): Bool()
                 })
             ),
@@ -54,7 +54,7 @@ class YAMLFile:
                     "entries": Seq(
                         Map({
                             "file": Str(),
-                            #"identifier": identifier,
+                            # "identifier": identifier,
                             "atom_index": Int(),
                             Optional("glob"): Bool()
                         })
@@ -121,7 +121,6 @@ class YAMLFile:
             )
 
         })
-
 
     # def _validate_measurements(self):
     #     data = self.data

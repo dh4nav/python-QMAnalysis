@@ -1,12 +1,17 @@
 import pandas as pd
 
+
 class AtomData:
     def __init__(self):
-        self.dataframe =  pd.DataFrame(columns = ["file_name", "file_index", "timestep_time", "timestep_index", "atom_index", "element", "alias", "charge", "x", "y", "z" ])   
+        self.dataframe = pd.DataFrame(columns=["file_name", "file_index", "timestep_name",
+                                      "timestep_index", "atom_index", "element", "alias", "charge", "x", "y", "z"])
+
 
 class TimestepData:
     def __init__(self):
-        self.dataframe =  pd.DataFrame(columns = ["file_name", "file_path", "timestep_time", "timestep_index", "raw_data", "energy", "zero-point energy", "file_comment", "measurements" ])     
+        self.dataframe = pd.DataFrame(columns=["file_name", "file_path", "timestep_name", "timestep_index",
+                                      "raw_data", "energy", "zero-point energy", "file_comment", "measurements"])
+
 
 class MeasurementData:
     def __init__(self, timestep_names):
@@ -17,9 +22,11 @@ class MeasurementData:
 
         # print(indexlist)
 
-        self.dataframe = pd.DataFrame({"file_name": timestep_names}, index=list(range(len(timestep_names)))) #indexlist, )
-    
-        #print(self.dataframe)
+        self.dataframe = pd.DataFrame({"file_name": timestep_names}, index=list(
+            range(len(timestep_names))))  # indexlist, )
+
+        # print(self.dataframe)
+
 
 class PerAtomData:
     def __init__(self, csv):
@@ -29,10 +36,13 @@ class PerAtomData:
 
             # Confirm row count matches before concatenating
             if len(self.dataframe) != len(temp_dataframe):
-                raise ValueError("Row count does not match between the existing DataFrame and the CSV file "+f)
+                raise ValueError(
+                    "Row count does not match between the existing DataFrame and the CSV file "+f)
 
             # Concatenate along columns (axis=1)
-            self.dataframe = pd.concat([self.dataframe, temp_dataframe], axis=1)
+            self.dataframe = pd.concat(
+                [self.dataframe, temp_dataframe], axis=1)
+
 
 class GlobalData:
     def __init__(self, csv):
@@ -42,7 +52,9 @@ class GlobalData:
 
             # Confirm row count matches before concatenating
             if len(self.dataframe) != len(temp_dataframe):
-                raise ValueError("Row count does not match between the existing DataFrame and the CSV file "+f)
+                raise ValueError(
+                    "Row count does not match between the existing DataFrame and the CSV file "+f)
 
             # Concatenate along columns (axis=1)
-            self.dataframe = pd.concat([self.dataframe, temp_dataframe], axis=1)
+            self.dataframe = pd.concat(
+                [self.dataframe, temp_dataframe], axis=1)

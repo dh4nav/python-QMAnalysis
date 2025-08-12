@@ -2,15 +2,17 @@ name: Procedure Name
 comment: XYZ
 version: 111
 files:
+  - path: "global_constants.csv"
+    type: global_constants_csv
   - path: "./benzene.xyz"
     type: xyz
     name: benz
   - path: "./benzene.xyz"
     type: xyz
-    name: benz2  
+    name: gurke  
   - path: "./benzene.xyz"
     type: xyz
-    name: benz3  
+    name: abcd  
 substitutions:
   - name: S1
     entries:
