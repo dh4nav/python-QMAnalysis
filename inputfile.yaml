@@ -7,9 +7,11 @@ files:
   - path: "./benzene.xyz"
     type: xyz
     name: benz
+    timestep: "init"
   - path: "./benzene.xyz"
     type: xyz
     name: gurke  
+    timestep: "transition state"
   - path: "./benzene.xyz"
     type: xyz
     name: abcd  
@@ -18,9 +20,9 @@ substitutions:
     entries:
     - file: benz
       atom_index: 5
-    - file: benz2
+    - file: gurke
       atom_index: 4
-    - file: benz3
+    - file: abcd
       atom_index: 1
 measurements:
   distance:
@@ -45,13 +47,28 @@ measurements:
       b: 3
       c: 6
       d: 7
+calc:
+  - name: gork
+    expr: "pi * H-O-H * 5.0"
+  - name: böp
+    expr: "np.sqrt(pi * H-O-H)"
+  - name: böps
+    expr: "pi * H-O-H"
+  - name: böpn
+    expr: "böp * böp"
 output:
   - file:
     - path: ./out.csv
       type: csv
+    - path: ./out_tuples.csv
+      type: csv_tuples   
   - graph:
-    - type: scatter_plot
-      x: Subs-bond
-      y: H-O-N 
-      file: ./SB-HON.tiff
-      
+      - type: scatter_plot
+        x: H-O-H
+        y: pi
+        series_by: file_name      # group series by file_name
+        parallel_by: timestep_name # parallel series by timestep_name
+        file: ./series_plot.tiff
+        file_format: tiff
+        dpi: 300
+  

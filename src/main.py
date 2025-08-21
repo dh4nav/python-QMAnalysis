@@ -3,7 +3,7 @@ import strictyaml as sy
 import qmanalysis.xyzreader as xr
 import qmanalysis.yamlreader as yr
 import qmanalysis.measure as mr
-from qmanalysis.containers import AtomData, TimestepData, MeasurementData, PerAtomData, GlobalData
+from qmanalysis.containers import AtomData, FrameData, MeasurementData
 import matplotlib.pyplot as plt
 from qmanalysis.dataswitch import DfWrapper, DataSwitch
 from pathlib import Path
@@ -11,6 +11,11 @@ import fnmatch
 import re
 import asteval as av
 from qmanalysis.globalconstantsreader import GlobalConstantsFile
+import pandas as pd
+import numpy as np
+import scipy
+
+import qmanalysis.customcalculationrunner as ccr
 
 
 def prepend_root_if_relative(file_path, root_path=None):
@@ -103,22 +108,6 @@ def main():
         parser = argparse.ArgumentParser()
         parser.add_argument("inputfile", help="Main command input file")
 
-        # # Add -ac / --atom-constants argument (multiple allowed)
-        # parser.add_argument(
-        #     "-ac", "--atom_constants",
-        #     action="append",
-        #     type=str,
-        #     help="Path to file defining atom-level constants. Can be specified multiple times."
-        # )
-
-        # # Add -gc / --global-constants argument (multiple allowed)
-        # parser.add_argument(
-        #     "-gc", "--global_constants",
-        #     action="append",
-        #     type=str,
-        #     help="Path to file defining global constants. Can be specified multiple times."
-        # )
-
         # Add -rp / --root-path argument (single allowed — default behavior)
         parser.add_argument(
             "-rp", "--root_path",
@@ -127,13 +116,10 @@ def main():
         )
 
         args = parser.parse_args()
-        print(args)
 
         if args.root_path is None:
             # print((Path.cwd() / args.inputfile).resolve().parent )
             args.root_path = (Path.cwd() / args.inputfile).resolve().parent
-
-        print(args)
 
         yamlparser = yr.YAMLFile()
         # yamlparser.load_string(testyaml)
@@ -144,7 +130,8 @@ def main():
         print(f"Validation error: {e}")
 
     atom_data = AtomData()
-    timestep_data = TimestepData()
+    frame_data = FrameData()
+    mesurement_data = MeasurementData()
 
     print(yamlparser.get_data())
 
@@ -154,299 +141,313 @@ def main():
         if file["type"].lower() == "xyz":
             if "glob" in file and file["glob"]:
                 for gfile in list(prepend_root_if_relative_and_glob(file_path=file["path"], root_path=args.root_path)):
-                    xr.XYZFile(atom_data, timestep_data, file_path=gfile,
-                               file_name=file["name"]+Path(gfile).stem)
+                    xr.XYZFile(atom_data, frame_data, file_path=gfile,
+                               file_name=file["name"]+Path(gfile).stem, timestep_name=file.get("timestep", None))
             else:
-                xr.XYZFile(atom_data, timestep_data, file_path=prepend_root_if_relative(
-                    file_path=file["path"], root_path=args.root_path), file_name=file["name"])
+                xr.XYZFile(atom_data, frame_data, file_path=prepend_root_if_relative(
+                    file_path=file["path"], root_path=args.root_path), file_name=file["name"], timestep_name=file.get("timestep", None))
         elif file["type"].lower() == "global_constants_csv":
             global_constants = GlobalConstantsFile(file_path=file["path"])
+        elif file["type"].lower() == "per_file_constants_csv":
+            per_file_constants = pd.read_csv(file_path=file["path"])
+            frame_data = pd.merge(
+                frame_data.df, per_file_constants, how='outer', on='file_name')
     # print(atom_data.dataframe)
     # print(timestep_data.dataframe)
+
+    print("Atom data:")
+    print(atom_data.dataframe)
+    print("Timestep data:")
+    print(frame_data.dataframe)
 
     if "substitutions" in yamldata:
         for sub in yamldata["substitutions"]:
             for subfile in sub['entries']:
-                # mask = (atom_data.dataframe["file_name"] == subfile['file']) & (atom_data.dataframe["atom_index"] == subfile['atom_index'])
-                # atom_data.dataframe[mask, ["alias"]] == 777
-                if "glob" in subfile:
-                    # print(subfile['file'])
-                    regex_pattern = fnmatch.translate(subfile['file'])
-                    regex = re.compile(regex_pattern)
-                    # print(regex)
-                    atom_data.dataframe.loc[atom_data.dataframe["file_name"].str.match(regex) & (
-                        atom_data.dataframe["atom_index"] == subfile['atom_index']), "alias"] = sub["name"]
+                # Handle substitution entries with possible wildcards in file_name, file_path, timestep_name, and atom_index
+                file_pattern = subfile.get('file', None)
+                timestep_pattern = subfile.get('timestep', None)
+                atom_index = subfile.get('atom_index', None)
+                file_path_pattern = subfile.get('file_path', None)
+
+                # Get MultiIndex levels
+                idx = atom_data.dataframe.index
+
+                # Build masks for each level
+                masks = []
+                # file_name
+                if file_pattern is not None:
+                    if any(char in file_pattern for char in ['*', '?', '[']):
+                        masks.append([fnmatch.fnmatch(str(val), file_pattern)
+                                     for val in idx.get_level_values('file_name')])
+                    else:
+                        masks.append(
+                            [str(val) == file_pattern for val in idx.get_level_values('file_name')])
+                # file_path
+                if file_path_pattern is not None:
+                    if any(char in file_path_pattern for char in ['*', '?', '[']):
+                        masks.append([fnmatch.fnmatch(str(val), file_path_pattern)
+                                     for val in idx.get_level_values('file_path')])
+                    else:
+                        masks.append(
+                            [str(val) == file_path_pattern for val in idx.get_level_values('file_path')])
+                # timestep_name
+                if timestep_pattern is not None:
+                    if any(char in timestep_pattern for char in ['*', '?', '[']):
+                        masks.append([fnmatch.fnmatch(str(val), timestep_pattern)
+                                     for val in idx.get_level_values('timestep_name')])
+                    else:
+                        masks.append(
+                            [str(val) == timestep_pattern for val in idx.get_level_values('timestep_name')])
+                # atom_index
+                if atom_index is not None:
+                    masks.append(
+                        [val == atom_index for val in idx.get_level_values('atom_index')])
+
+                # Combine all masks
+                if masks:
+                    final_mask = pd.Series([all(vals) for vals in zip(
+                        *masks)], index=atom_data.dataframe.index)
                 else:
-                    atom_data.dataframe.loc[(atom_data.dataframe["file_name"] == subfile['file']) & (
-                        atom_data.dataframe["atom_index"] == subfile['atom_index']), "alias"] = sub["name"]
+                    final_mask = pd.Series(
+                        [True] * len(atom_data.dataframe), index=atom_data.dataframe.index)
+
+                atom_data.dataframe.loc[final_mask, "alias"] = sub["name"]
+
     print("Finished reading")
+    print("Atom data:")
     print(atom_data.dataframe)
-    print(timestep_data.dataframe)
+    print("Timestep data:")
+    print(frame_data.dataframe)
 
-    timestep_names = timestep_data.dataframe.loc[:, "file_name"].to_numpy()
+    timestep_names = frame_data.dataframe.index.get_level_values(
+        "timestep_name").unique().tolist()
+    print(timestep_names)
 
-    # print(timestep_names)
+    # Read CSV file with name/value pairs and add columns to frame_data.dataframe
+    global_constants_csv_file = next(
+        (f for f in yamldata.get("files", []) if f.get(
+            "type", "").lower() == "global_constants_csv"), None
+    )
+    if global_constants_csv_file:
+        csv_path = prepend_root_if_relative(
+            file_path=global_constants_csv_file["path"], root_path=args.root_path
+        )
+        name_value_df = pd.read_csv(csv_path)
+        for _, row in name_value_df.iterrows():
+            col_name = row['name']
+            col_value = row['value']
+            frame_data.dataframe[col_name] = col_value
 
-    # from asteval import Interpreter
-    # from types import MethodType
-
-    # class Symboler:
-    #   def __init__(self):
-    #     self._store = {}
-
-    #   def __getitem__(self, key):
-    #     return self._store[key]
-
-    #   def __setitem__(self, key, value):
-    #     self._store[key] = value
-
-    #   def __getattr__(self, name):
-    #     # Called for undefined attributes
-    #     return SymbolerAccessor(self, [name])
-
-    #   def __call__(self, name, *args, **kwargs):
-    #     print(f"Called {name} with args={args}, kwargs={kwargs}")
-    #     return f"<result of {name}()>"
-
-    # class SymbolerAccessor:
-    #   def __init__(self, symboler, path):
-    #     self._symboler = symboler
-    #     self._path = path
-
-    #   def __getattr__(self, name):
-    #     return SymbolerAccessor(self._symboler, self._path + [name])
-
-    #   def __call__(self, *args, **kwargs):
-    #     full_name = ".".join(self._path)
-    #     return self._symboler(full_name, *args, **kwargs)
-
-    # class SymbolerInterpreter(Interpreter):
-    #   def __init__(self, symboler, **kwargs):
-    #     self.symboler = symboler
-    #     super().__init__(usersyms={}, **kwargs)
-
-    #   def run(self, expr, **kwargs):
-    #     # sync all symboler keys to usersyms
-    #     for k, v in self.symboler._store.items():
-    #       self.symtable[k] = v
-    #     return super().run(expr, **kwargs)
-    # from collections import UserDict
-    # from types import MethodType
-
-    # * plain variables
-    # * const is a dictionary, const.name returns constant name
-    # * atoms, measurements, frames are all pd.DataFrame objects
-    #   * attribute access in these (x as placeholder):
-    #     * x.attribute returns one-column pd inside DfWrapper with respective column
-    #     * x() returns filter result as pd in DfWrapper. Parameters: ts= for timestep, file= for file name. file name can contain wildcards or a list
-
-    # class DfWrapper():
-    #     def __init__(self, df):
-    #         self._df = df
-
-    #     def __getattr__(self, name):
-    #         if name in self._df:
-    #             print("getx+ "+name)
-    #             return self._df[name]
-    #         else:
-    #             print("getx "+name)
-    #             raise AttributeError("Missing attribute "+name)
-
-    #     def _wildcard_to_regex(self, pattern):
-    #         # Escape all regex special chars first
-    #         escaped = re.escape(pattern)
-    #         # Replace escaped wildcard chars by regex equivalents
-    #         regex = escaped.replace(r'\*', '.*').replace(r'\?', '.')
-    #         # Add anchors to match the whole string
-    #         regex = '^' + regex + '$'
-    #         return regex
-
-    #     def _filter_rows(self, df, name, value):
-    #         if isinstance(value, (int, float)):
-    #             return df[df[name] == value]
-    #         if isinstance(value, list):
-    #             return df[df[name].isin(value)]
-    #         if isinstance(value, str):
-    #             rex = self._wildcard_to_regex(value)
-    #             return df[df[name].str.match(rex)]
-
-    #     def __call__(self, *args, **kwds):
-    #         temp_df = self._df
-    #         print(kwds)
-    #         if "file_name" in kwds and kwds['file_name'] is not None:
-    #             print("requested file_name " + str(temp_df))
-    #             temp_df = self._filter_rows(
-    #                 temp_df, "file_name", kwds['file_name'])
-    #             print("requested file_name " + str(temp_df))
-
-    #         if "file_index" in kwds and kwds['file_index'] is not None:
-    #             temp_df = self._filter_rows(
-    #                 temp_df, "file_index", kwds['file_index'])
-    #             print("requested file_index " + str(temp_df))
-
-    #         if "ts_name" in kwds and kwds['ts_name'] is not None:
-    #             temp_df = self._filter_rows(
-    #                 temp_df, "timestep_name", kwds['ts_name'])
-    #             print("requested ts_name " + str(temp_df))
-
-    #         if "ts_index" in kwds and kwds['ts_index'] is not None:
-    #             temp_df = self._filter_rows(
-    #                 temp_df, "timestep_index", kwds['ts_index'])
-    #             print("requested ts_index " + str(temp_df))
-
-    #         return DfWrapper(temp_df)
-
-    # class Symboler(UserDict):
-    #   def __init__(self, root_obj=None):
-    #     self.root_obj = root_obj
-
-    #   def __getitem__(self, key):
-    #     if self.root_obj:
-    #       try:
-    #         return self.root_obj[key]
-    #     else:
-    #       try:
-    #         if isinstance(self.data[key], pd.DataFrame):
-    #           return Symboler(root_obj=self.data[key])
-    #         else:
-    #           return self.data[key]
-
-    #   def __setitem__(self, key, value):
-    #     if self.root_obj:
-    #       try:
-    #         self.root_obj[key] = value
-    #     else:
-    #       try:
-    #         self.data[key]
-
-    #   def __getattribute__(self, name):
-    #     if self.root_obj:
-    #       try:
-    #         if hasattr(self.root_obj, name) and type(getattr(self.root_obj, name)) == types.MethodType:
-    #           return
-    #         return self.root_obj[name]
-    #     else:
-    #       try:
-    #         if isinstance(self.data[name], pd.DataFrame):
-    #           return Symboler(root_obj=self.data[name])
-    #         else:
-    #           return self.data[name]
-
-    # # Example usage
-    # symb = Symboler()
-    # symb['x'] = 42
-    # symb['y'] = 3.14
-    # symb['atoms'] = atom_data.dataframe
-
-    # test_df = DfWrapper(atom_data.dataframe)
-
-    # Create an Interpreter with the custom symbol table
-    aeval = DataSwitch(userdicts={
-                       "const": global_constants.global_constants_data, "atoms": atom_data.dataframe})
-
-    # Evaluate an expression using the custom symbol table
-    result = aeval.query(
-        """atoms(file_name='gurke').x / const.pi""")
-    print(str(result))  # Output: 45.14
+    # Read CSV files with frame constants and add columns to frame_data.dataframe
+    frame_constants_csv_files = [
+        f for f in yamldata.get("files", []) if f.get("type", "").lower() == "frame_constants_csv"
+    ]
+    for frame_constants_csv_file in frame_constants_csv_files:
+        csv_path = prepend_root_if_relative(
+            file_path=frame_constants_csv_file["path"], root_path=args.root_path
+        )
+        frame_constants_df = pd.read_csv(csv_path)
+        # Identify label columns (file_name, file_path, timestep_name)
+        label_cols = [col for col in frame_constants_df.columns if col in [
+            "file_name", "file_path", "timestep_name"]]
+        value_cols = [
+            col for col in frame_constants_df.columns if col not in label_cols]
+        # For each row in frame_constants_df, match to frame_data and set value
+        for _, row in frame_constants_df.iterrows():
+            mask = pd.Series([True] * len(frame_data.dataframe),
+                             index=frame_data.dataframe.index)
+            for label in label_cols:
+                val = row[label]
+                if pd.isna(val):
+                    continue
+                idx_vals = frame_data.dataframe.index.get_level_values(label)
+                if any(char in str(val) for char in ['*', '?', '[']):
+                    mask &= [fnmatch.fnmatch(str(idx_val), str(val))
+                             for idx_val in idx_vals]
+                else:
+                    mask &= [str(idx_val) == str(val) for idx_val in idx_vals]
+            for value_col in value_cols:
+                frame_data.dataframe.loc[mask, value_col] = row[value_col]
+        # Fill missing values with NaN (already default in pandas, but ensure columns exist)
+        for value_col in value_cols:
+            if value_col not in frame_data.dataframe.columns:
+                frame_data.dataframe[value_col] = pd.NA
 
     measure = mr.Measure()
 
-    md = MeasurementData(timestep_names)
-    if args.atom_constants:
-        ac = PerAtomData([prepend_root_if_relative(
-            file_path=f, root_path=args.root_path) for f in args.atom_constants])
-    else:
-        ac = None
+    def resolve_atom(label, timestep_name, m):
+        file_val = m.get("file", None)
+        timestep_val = timestep_name if timestep_name is not None else None
 
-    if args.global_constants:
-        gc = GlobalData([prepend_root_if_relative(
-            file_path=f, root_path=args.root_path) for f in args.global_constants])
-    else:
-        gc = None
+        def match_all(val):
+            return val is None or (isinstance(val, float) and pd.isna(val)) or (isinstance(val, str) and val.strip() == "")
 
-    data_switch = DataSwitch(
-        dataframe=md, atom_constants=ac, global_constants=gc)
-    print(timestep_names)
+        try:
+            idx = int(label)
+            file_mask = np.ones(len(atom_data.dataframe), dtype=bool) if match_all(file_val) else (
+                atom_data.dataframe.index.get_level_values("file_name") == file_val)
+            timestep_mask = np.ones(len(atom_data.dataframe), dtype=bool) if match_all(timestep_val) else (
+                atom_data.dataframe.index.get_level_values("timestep_name") == timestep_val)
+            atom_index_mask = (
+                atom_data.dataframe.index.get_level_values("atom_index") == idx)
+            mask = file_mask & timestep_mask & atom_index_mask
+        except ValueError:
+            file_mask = np.ones(len(atom_data.dataframe), dtype=bool) if match_all(file_val) else (
+                atom_data.dataframe.index.get_level_values("file_name") == file_val)
+            timestep_mask = np.ones(len(atom_data.dataframe), dtype=bool) if match_all(timestep_val) else (
+                atom_data.dataframe.index.get_level_values("timestep_name") == timestep_val)
+            alias_mask = (atom_data.dataframe["alias"] == str(label))
+            mask = file_mask & timestep_mask & alias_mask
 
-    temp_array = []
+        matches = atom_data.dataframe.index[mask]
+        if len(matches) == 0:
+            print(
+                f"Could not resolve atom '{label}' for timestep '{timestep_name}' and file '{file_val}'")
+            return None
+        return matches[0]
 
+    # Ensure frame_data.dataframe has a column for each measurement
     if "measurements" in yamldata:
-        if "distance" in yamldata["measurements"]:
-            for distance in yamldata["measurements"]["distance"]:
-                # print(distance['a'])
-                temp_array = []
-                for timestep_name in timestep_names:
-                    # print(timestep_name)
-                    # print(atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(distance['a'])  )])
-                    temp_array.append(measure.distance(
-                        atom_data=atom_data,
-                        atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (
-                            atom_data.dataframe['alias'] == str(distance['a']))].index[0],
-                        atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(distance['b']))].index[0]))
-                md.dataframe[distance["name"]] = temp_array
-                # print(md.dataframe)
+        timestep_names = frame_data.dataframe.index.get_level_values(
+            "timestep_name").unique().tolist()
+        for mtype in ["distance", "angle", "dihedral"]:
+            if mtype in yamldata["measurements"]:
+                for m in yamldata["measurements"][mtype]:
+                    results = []
+                    for timestep_name in timestep_names:
+                        try:
+                            if mtype == "distance":
+                                idx_a = resolve_atom(m["a"], timestep_name, m)
+                                idx_b = resolve_atom(m["b"], timestep_name, m)
+                                if idx_a is None or idx_b is None:
+                                    val = None
+                                else:
+                                    val = measure.distance(
+                                        atom_data, idx_a, idx_b)
+                            elif mtype == "angle":
+                                idx_a = resolve_atom(m["a"], timestep_name, m)
+                                idx_b = resolve_atom(m["b"], timestep_name, m)
+                                idx_c = resolve_atom(m["c"], timestep_name, m)
+                                if None in (idx_a, idx_b, idx_c):
+                                    val = None
+                                else:
+                                    val = measure.angle(
+                                        atom_data, idx_a, idx_b, idx_c)
+                            elif mtype == "dihedral":
+                                idx_a = resolve_atom(m["a"], timestep_name, m)
+                                idx_b = resolve_atom(m["b"], timestep_name, m)
+                                idx_c = resolve_atom(m["c"], timestep_name, m)
+                                idx_d = resolve_atom(m["d"], timestep_name, m)
+                                if None in (idx_a, idx_b, idx_c, idx_d):
+                                    val = None
+                                else:
+                                    val = measure.dihedral(
+                                        atom_data, idx_a, idx_b, idx_c, idx_d)
+                            results.append(val)
+                        except Exception as e:
+                            print(
+                                f"Error in measurement '{m['name']}' for timestep '{timestep_name}': {e}")
+                            results.append(None)
+                    frame_data.dataframe[m["name"]] = results
+    print("Finished measuring")
+    print("Timestep data:")
+    print(frame_data.dataframe)
 
-        if "angle" in yamldata["measurements"]:
-            for angle in yamldata["measurements"]["angle"]:
-                # print(angle)
-                temp_array = []
-                for timestep_name in timestep_names:
-                    temp_array.append(measure.angle(
-                        atom_data=atom_data,
-                        atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (
-                            atom_data.dataframe['alias'] == str(angle['a']))].index[0],
-                        atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (
-                            atom_data.dataframe['alias'] == str(angle['b']))].index[0],
-                        atom_index3=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(angle['c']))].index[0]))
-                md.dataframe[angle["name"]] = temp_array
-        if "dihedral" in yamldata["measurements"]:
-            for dihedral in yamldata["measurements"]["dihedral"]:
-                # print(dihedral)
-                temp_array = []
-                for timestep_name in timestep_names:
-                    temp_array.append(measure.dihedral(
-                        atom_data=atom_data,
-                        atom_index1=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (
-                            atom_data.dataframe['alias'] == str(dihedral['a']))].index[0],
-                        atom_index2=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (
-                            atom_data.dataframe['alias'] == str(dihedral['b']))].index[0],
-                        atom_index3=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (
-                            atom_data.dataframe['alias'] == str(dihedral['c']))].index[0],
-                        atom_index4=atom_data.dataframe[(atom_data.dataframe['file_name'] == timestep_name) & (atom_data.dataframe['alias'] == str(dihedral['d']))].index[0]))
-                md.dataframe[dihedral["name"]] = temp_array
-    # print(md.dataframe)
-    # print(atom_data.dataframe)
-    # print(timestep_data.dataframe)
-    # print(yamldata['output'])
-    for one_output in yamldata['output']:
+    if "calc" in yamldata:
+        runner = ccr.CustomCalculationRunner(frame_data)
+        runner.run(yamldata["calc"])
+        print("Custom calculations complete.")
+        print(frame_data.dataframe)
+
+    class FrameDataExporter:
+        def __init__(self, frame_data):
+            self.frame_data = frame_data
+
+        def export_csv_tuples(self, file_path):
+            df = self.frame_data.dataframe.copy()
+            df = df.reset_index()
+            df['tipe'] = list(
+                df[self.frame_data.dataframe.index.names].apply(tuple, axis=1))
+            cols = [
+                'tipe'] + [col for col in df.columns if col not in self.frame_data.dataframe.index.names]
+            df_export = df[cols]
+            df_export.to_csv(file_path, index=False)
+
+        def export_csv_multiindex(self, file_path):
+            df = self.frame_data.dataframe.copy()
+            df.to_csv(file_path)
+
+    exporter = FrameDataExporter(frame_data)
+
+    for one_output in yamldata.get('output', []):
         if 'file' in one_output:
-            # print(one_output)
             for file in one_output['file']:
-                # print(file)
-                if file['type'].lower() == "csv":
-                    md.dataframe.to_csv(prepend_root_if_relative(
-                        file_path=file['path'], root_path=args.root_path))
+                file_type = file.get('type', '').lower()
+                file_path = prepend_root_if_relative(
+                    file_path=file['path'], root_path=args.root_path)
+                if file_type == "csv_tuples":
+                    exporter.export_csv_tuples(file_path)
+                elif file_type == "csv":
+                    exporter.export_csv_multiindex(file_path)
                 else:
-                    raise IndexError(f"{file['type']}: Unknown file type")
-         # if "graphics" in yamldata['output']:
-        # print("Z0")
+                    raise IndexError(f"{file_type}: Unknown file type")
+
+    # Visualization: Plot measurement n vs m with series grouped by file_name and timestep_name
+    # Example YAML specification for such a plot:
+    # output:
+    #   - graph:
+    #       - type: scatter_plot
+    #         x: measurement_m
+    #         y: measurement_n
+    #         series_by: file_name      # group series by file_name
+    #         parallel_by: timestep_name # parallel series by timestep_name
+    #         file: ../series_plot.tiff
+    #         file_format: tiff
+    #         dpi: 300
+
+    for one_output in yamldata.get('output', []):
         if 'graph' in one_output:
-            # print("Z1")
             for graph in one_output['graph']:
                 if graph['type'].lower() == "scatter_plot":
-                    # print("Z")
-                    # alt:
-                    # fig, ax = plt.subplots(figsize=graph.get("figsize", (8, 6)))  # default figsize
-                    # df.plot(x='x', y='y', ax=ax)
+                    x_col = graph['x']
+                    y_col = graph['y']
+                    series_by = graph.get('series_by', None)
+                    parallel_by = graph.get('parallel_by', None)
+                    df = frame_data.dataframe.reset_index()
 
-                    plot = md.dataframe.plot.scatter(
-                        x=graph['x'], y=graph['y'])
-                    # plt.show()
-                    fig = plot.get_figure()
-                    fig.savefig(prepend_root_if_relative(file_path=graph['file'], root_path=args.root_path), dpi=graph.get(
-                        "dpi", 300), format=graph.get("file_format", "tiff"))
-
-    # print(data_switch("data"))
+                    if series_by and parallel_by:
+                        # Group by parallel_by, then plot series_by within each group
+                        unique_parallel = df[parallel_by].unique()
+                        fig, ax = plt.subplots(
+                            figsize=graph.get("figsize", (8, 6)))
+                        for pval in unique_parallel:
+                            subdf = df[df[parallel_by] == pval]
+                            for sval in subdf[series_by].unique():
+                                ssubdf = subdf[subdf[series_by] == sval]
+                                ax.plot(ssubdf[x_col], ssubdf[y_col], marker='o',
+                                        label=f"{series_by}: {sval}, {parallel_by}: {pval}")
+                        ax.set_xlabel(x_col)
+                        ax.set_ylabel(y_col)
+                        ax.legend()
+                        fig.savefig(prepend_root_if_relative(file_path=graph['file'], root_path=args.root_path), dpi=graph.get(
+                            "dpi", 300), format=graph.get("file_format", "tiff"))
+                    elif series_by:
+                        fig, ax = plt.subplots(
+                            figsize=graph.get("figsize", (8, 6)))
+                        for sval in df[series_by].unique():
+                            ssubdf = df[df[series_by] == sval]
+                            ax.plot(ssubdf[x_col], ssubdf[y_col],
+                                    marker='o', label=f"{series_by}: {sval}")
+                        ax.set_xlabel(x_col)
+                        ax.set_ylabel(y_col)
+                        ax.legend()
+                        fig.savefig(prepend_root_if_relative(file_path=graph['file'], root_path=args.root_path), dpi=graph.get(
+                            "dpi", 300), format=graph.get("file_format", "tiff"))
+                    else:
+                        plot = df.plot.scatter(x=x_col, y=y_col)
+                        fig = plot.get_figure()
+                        fig.savefig(prepend_root_if_relative(file_path=graph['file'], root_path=args.root_path), dpi=graph.get(
+                            "dpi", 300), format=graph.get("file_format", "tiff"))
 
 
 if __name__ == "__main__":

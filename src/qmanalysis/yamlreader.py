@@ -42,9 +42,10 @@ class YAMLFile:
                     "path": Str(),
                     Optional("name"): Str(),
                     "type": Str(),
-                    # adjust as needed
+                    # Support for global_constants_csv and frame_constants_csv
                     Optional("options"): Str() | Int() | MapPattern(Str(), Str()),
-                    Optional("glob"): Bool()
+                    Optional("glob"): Bool(),
+                    Optional("timestep"): Str()
                 })
             ),
 
@@ -54,7 +55,6 @@ class YAMLFile:
                     "entries": Seq(
                         Map({
                             "file": Str(),
-                            # "identifier": identifier,
                             "atom_index": Int(),
                             Optional("glob"): Bool()
                         })
@@ -65,7 +65,7 @@ class YAMLFile:
             Optional("sequences"): Seq(
                 Map({
                     "name": Str(),
-                    "entries": Seq(identifier)  # can be string or int
+                    "entries": Seq(identifier)
                 })
             ),
 
@@ -96,19 +96,27 @@ class YAMLFile:
                 )
             }),
 
+            # Add calc logic
+            Optional("calc"): Seq(
+                Map({
+                    "name": Str(),
+                    "expr": Str()
+                })
+            ),
+
             "output": Seq(
                 Map({
                     Optional("graph"): Seq(
                         Map({
                             "type": Str(),
-                            Optional("name"): Str(),
                             "x": identifier,
                             "y": identifier,
-                            Optional("dpi"): Int(),
+                            Optional("series_by"): Str(),
+                            Optional("parallel_by"): Str(),
                             "file": Str(),
                             Optional("file_format"): Str(),
-                            Optional("y_label"): Str(),
-                            Optional("x_label"): Str()
+                            Optional("dpi"): Int(),
+                            Optional("figsize"): Seq(Int())
                         })
                     ),
                     Optional("file"): Seq(

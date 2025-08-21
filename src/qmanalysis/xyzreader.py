@@ -2,16 +2,32 @@ import pandas as pd
 from pathlib import Path
 
 
+# class AtomData:
+#     def __init__(self):
+#         idx = pd.MultiIndex.from_tuples([], names=(
+#             'file_name', 'file_path', 'timestep_name', 'atom_index'))
+#         self.dataframe = pd.DataFrame(
+#             index=ind, columns=["element", "alias", "charge", "x", "y", "z"])
+
+
+# class FrameData:
+#     def __init__(self):
+#         idx = pd.MultiIndex.from_tuples([], names=(
+#             'file_name', 'file_path', 'timestep_name'))
+#         self.dataframe = pd.DataFrame(
+#             columns=["raw_data", "energy", "zero-point energy", "file_comment"])
+
 class XYZFile:
-    def __init__(self, atom_data, timestep_data, file_path, file_name=None):
+    def __init__(self, atom_data, frame_data, file_path, file_name=None, timestep_name=None):
         self.atom_data = atom_data
-        self.timestep_data = timestep_data
+        self.timestep_data = frame_data
         self.file_path = file_path
-        self.path = path = Path(self.file_path)
+        self.path = Path(self.file_path)
         if file_name:
             self.file_name = file_name
         else:
             self.file_name = self.path.name
+        self.timestep_name = timestep_name
 
         self._read_xyz()
 
@@ -40,22 +56,14 @@ class XYZFile:
                 f"{self.file_path}: Expected {atom_count} atom lines, but got {len(atom_lines)}")
             raise IndexError(
                 f"{self.file_path}: Expected {atom_count} atom lines, but got {len(atom_lines)}")
-
         # Add entry to timestep_data
-        timestep_index = len(self.timestep_data.dataframe)
-        self.timestep_data.dataframe.loc[timestep_index] = {
-            "file_name": self.file_name,
-            "file_path": str(self.path),
-            "timestep_name": None,
-            "timestep_index": timestep_index,
+
+        self.timestep_data.dataframe.loc[(self.file_name, self.file_path, self.timestep_name)] = {
             "raw_data": "\n".join(lines),
             "energy": None,
             "zero-point energy": None,
-            "file_comment": comment,
-            "measurements": {}
+            "file_comment": comment
         }
-
-        file_index = timestep_index  # assuming 1 file = 1 timestep
 
         for atom_index, line in enumerate(atom_lines[:atom_count]):
             tokens = line.split()
@@ -75,18 +83,11 @@ class XYZFile:
             # Optional: alias and charge
             alias = tokens[4] if len(tokens) > 4 else str(atom_index)
             charge = float(tokens[5]) if len(tokens) > 5 else None
-
-            self.atom_data.dataframe.loc[len(self.atom_data.dataframe)] = {
-                "file_name": self.file_name,
-                "file_path": str(self.path),
-                "file_index": file_index,
-                "atom_index": atom_index,
+            self.atom_data.dataframe.loc[(self.file_name, self.file_path, self.timestep_name, atom_index)] = {
                 "element": element,
                 "x": x,
                 "y": y,
                 "z": z,
                 "alias": alias,
-                "charge": charge,
-                "timestep_name": None,
-                "timestep_index": timestep_index
+                "charge": charge
             }
