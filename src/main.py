@@ -5,7 +5,6 @@ import qmanalysis.yamlreader as yr
 import qmanalysis.measure as mr
 from qmanalysis.containers import AtomData, FrameData, MeasurementData
 import matplotlib.pyplot as plt
-from qmanalysis.dataswitch import DfWrapper, DataSwitch
 from pathlib import Path
 import fnmatch
 import re

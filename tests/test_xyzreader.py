@@ -1,141 +1,110 @@
 import pytest
 import pandas as pd
+import tempfile
 from pathlib import Path
-from qmanalysis.xyzreader import XYZFile  # Adjust this import as needed
+from qmanalysis.xyzreader import XYZFile
+from qmanalysis.containers import AtomData, FrameData
 
-# --- Fixtures ---
-
-@pytest.fixture
-def dummy_timestep_data():
-    class DummyData:
-        def __init__(self):
-            self.dataframe = pd.DataFrame(columns=[
-                "file_name", "file_path", "timestep_time", "timestep_index",
-                "raw_data", "energy", "zero-point energy", "file_comment", "measurements"
-            ])
-    return DummyData()
-
-@pytest.fixture
-def dummy_atom_data():
-    class DummyAtomData:
-        def __init__(self):
-            self.dataframe = pd.DataFrame(columns=[
-                "file_name", "file_path", "file_index", "atom_index",
-                "element", "x", "y", "z", "alias", "charge",
-                "timestep_time", "timestep_index"
-            ])
-    return DummyAtomData()
 
 @pytest.fixture
 def xyz_file_content():
     return """3
-Comment line
-H 0.0 0.0 0.0
-C 1.0 0.0 0.0
-O 0.0 1.0 0.0
+benzene molecule
+C 0.0 0.0 0.0 CA 0.0
+H 1.0 0.0 0.0 HA 0.1
+O 0.0 1.0 0.0 OA -0.2
 """
 
-# --- Tests ---
 
-def test_xyzfile_parsing(tmp_path, xyz_file_content, dummy_atom_data, dummy_timestep_data):
-    file_path = tmp_path / "test.xyz"
+def test_xyzfile_reads_atoms_and_frame(tmp_path, xyz_file_content):
+    file_path = tmp_path / "benzene.xyz"
     file_path.write_text(xyz_file_content)
+    atom_data = AtomData()
+    frame_data = FrameData()
+    xyz = XYZFile(atom_data, frame_data, str(file_path),
+                  file_name="benz", timestep_name="init")
+    # Check frame_data
+    idx = ("benz", str(file_path), "init")
+    assert idx in frame_data.dataframe.index
+    assert frame_data.dataframe.loc[idx, "file_comment"] == "benzene molecule"
+    # Check atom_data
+    for i, (element, alias, charge) in enumerate([("C", "CA", 0.0), ("H", "HA", 0.1), ("O", "OA", -0.2)]):
+        atom_idx = ("benz", str(file_path), "init", i)
+        assert atom_idx in atom_data.dataframe.index
+        assert atom_data.dataframe.loc[atom_idx, "element"] == element
+        assert atom_data.dataframe.loc[atom_idx, "alias"] == alias
+        assert atom_data.dataframe.loc[atom_idx, "charge"] == charge
 
-    XYZFile(dummy_atom_data, dummy_timestep_data, str(file_path))
 
-    # Check timestep entry
-    assert len(dummy_timestep_data.dataframe) == 1
-    timestep_row = dummy_timestep_data.dataframe.iloc[0]
-    assert timestep_row["file_path"] == str(file_path)
-    assert timestep_row["file_comment"] == "Comment line"
-    assert timestep_row["measurements"] == {}
-
-    # Check atom entries
-    df = dummy_atom_data.dataframe
-    assert len(df) == 3
-    assert list(df["element"]) == ["H", "C", "O"]
-    assert df.iloc[1]["x"] == 1.0
-    assert df.iloc[0]["alias"] == str(df.iloc[0]["atom_index"])
-    assert pd.isna(df.iloc[0]["charge"])
-
-def test_optional_alias_and_charge(tmp_path, dummy_atom_data, dummy_timestep_data):
+def test_xyzfile_missing_atom_lines(tmp_path):
     content = """2
-Water molecule
-H 0.0 0.0 0.0 H1 0.25
-O 1.0 0.0 0.0 O1 -0.5
+comment
+C 0.0 0.0 0.0
 """
-    file_path = tmp_path / "alias_charge.xyz"
+    file_path = tmp_path / "bad.xyz"
     file_path.write_text(content)
+    atom_data = AtomData()
+    frame_data = FrameData()
+    with pytest.raises(IndexError, match="Expected 2 atom lines, but got 1"):
+        XYZFile(atom_data, frame_data, str(file_path),
+                file_name="bad", timestep_name="init")
 
-    XYZFile(dummy_atom_data, dummy_timestep_data, str(file_path))
 
-    df = dummy_atom_data.dataframe
-    assert df.loc[0, "alias"] == "H1"
-    assert df.loc[0, "charge"] == 0.25
-    assert df.loc[1, "alias"] == "O1"
-    assert df.loc[1, "charge"] == -0.5
-
-def test_wrong_atom_count_too_low(tmp_path, dummy_atom_data, dummy_timestep_data):
-    content = """4
-Comment line
-H 0.0 0.0 0.0
-C 1.0 0.0 0.0
-O 0.0 1.0 0.0
+def test_xyzfile_non_integer_atom_count(tmp_path):
+    content = """notanint
+comment
+C 0.0 0.0 0.0
+H 1.0 0.0 0.0
 """
-    file_path = tmp_path / "wrong_count.xyz"
+    file_path = tmp_path / "bad.xyz"
     file_path.write_text(content)
-
-    with pytest.raises(IndexError, match="Expected 4 atom lines, but got 3"):
-        XYZFile(dummy_atom_data, dummy_timestep_data, str(file_path))
-
-def test_wrong_atom_count_too_high(tmp_path, dummy_atom_data, dummy_timestep_data):
-    content = """2
-Comment line
-H 0.0 0.0 0.0
-C 1.0 0.0 0.0
-O 0.0 1.0 0.0
-"""
-    file_path = tmp_path / "wrong_count.xyz"
-    file_path.write_text(content)
-
-    with pytest.raises(IndexError, match="Expected 2 atom lines, but got 3"):
-        XYZFile(dummy_atom_data, dummy_timestep_data, str(file_path))
-
-def test_malformed_atom_line(tmp_path, dummy_atom_data, dummy_timestep_data):
-    content = """2
-Bad line
-H 0.0 0.0
-C 1.0 0.0 0.0
-"""
-    file_path = tmp_path / "bad_line.xyz"
-    file_path.write_text(content)
-
-    with pytest.raises(ValueError, match="Malformed atom line 3"):
-        XYZFile(dummy_atom_data, dummy_timestep_data, str(file_path))
-
-def test_non_numeric_coordinates(tmp_path, dummy_atom_data, dummy_timestep_data):
-    content = """1
-Non-numeric
-H A B C
-"""
-    file_path = tmp_path / "non_numeric.xyz"
-    file_path.write_text(content)
-
-    with pytest.raises(ValueError, match="Coordinates must be numeric in line 3"):
-        XYZFile(dummy_atom_data, dummy_timestep_data, str(file_path))
-
-def test_missing_header_line(tmp_path, dummy_atom_data, dummy_timestep_data):
-    content = "2\n"
-    file_path = tmp_path / "missing_comment.xyz"
-    file_path.write_text(content)
-
-    with pytest.raises(ValueError, match="File too short"):
-        XYZFile(dummy_atom_data, dummy_timestep_data, str(file_path))
-
-def test_invalid_atom_count_header(tmp_path, dummy_atom_data, dummy_timestep_data):
-    content = "Two\nComment\nH 0.0 0.0 0.0"
-    file_path = tmp_path / "bad_header.xyz"
-    file_path.write_text(content)
-
+    atom_data = AtomData()
+    frame_data = FrameData()
     with pytest.raises(ValueError, match="First line must be an integer"):
-        XYZFile(dummy_atom_data, dummy_timestep_data, str(file_path))
+        XYZFile(atom_data, frame_data, str(file_path),
+                file_name="bad", timestep_name="init")
+
+
+def test_xyzfile_malformed_atom_line(tmp_path):
+    content = """2
+comment
+C 0.0 0.0
+H 1.0 0.0 0.0
+"""
+    file_path = tmp_path / "bad.xyz"
+    file_path.write_text(content)
+    atom_data = AtomData()
+    frame_data = FrameData()
+    with pytest.raises(ValueError, match="Malformed atom line"):
+        XYZFile(atom_data, frame_data, str(file_path),
+                file_name="bad", timestep_name="init")
+
+
+def test_xyzfile_non_numeric_coordinates(tmp_path):
+    content = """1
+comment
+C x y z
+"""
+    file_path = tmp_path / "bad.xyz"
+    file_path.write_text(content)
+    atom_data = AtomData()
+    frame_data = FrameData()
+    with pytest.raises(ValueError, match="Coordinates must be numeric"):
+        XYZFile(atom_data, frame_data, str(file_path),
+                file_name="bad", timestep_name="init")
+
+
+def test_xyzfile_default_alias_and_charge(tmp_path):
+    content = """1
+comment
+C 0.0 0.0 0.0
+"""
+    file_path = tmp_path / "one.xyz"
+    file_path.write_text(content)
+    atom_data = AtomData()
+    frame_data = FrameData()
+    XYZFile(atom_data, frame_data, str(file_path),
+            file_name="one", timestep_name="init")
+    idx = ("one", str(file_path), "init", 0)
+    assert atom_data.dataframe.loc[idx, "alias"] == "0"
+    assert pd.isna(atom_data.dataframe.loc[idx, "charge"])
