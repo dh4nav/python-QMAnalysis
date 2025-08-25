@@ -137,7 +137,7 @@ def main():
     print(yamlparser.get_data())
 
     yamldata = yamlparser.get_data()
-
+    print(yamldata)
     for file in yamldata["files"]:
         if file["type"].lower() == "xyz":
             if "glob" in file and file["glob"]:
