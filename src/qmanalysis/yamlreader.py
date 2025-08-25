@@ -54,7 +54,8 @@ class YAMLFile:
                     "name": Str(),
                     "entries": Seq(
                         Map({
-                            "file": Str(),
+                            Optional("file"): Str(),
+                            Optional("timestep"): Str(),
                             "atom_index": Int(),
                             Optional("glob"): Bool()
                         })
