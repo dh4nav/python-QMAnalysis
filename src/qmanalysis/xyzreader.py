@@ -81,8 +81,8 @@ class XYZFile:
                 )
 
             # Optional: alias and charge
-            alias = tokens[4] if len(tokens) > 4 else str(atom_index)
-            charge = float(tokens[5]) if len(tokens) > 5 else None
+            alias = tokens[5] if len(tokens) > 5 else str(atom_index)
+            charge = float(tokens[4]) if len(tokens) > 4 else None
             self.atom_data.dataframe.loc[(self.file_name, self.file_path, self.timestep_name, atom_index)] = {
                 "element": element,
                 "x": x,
