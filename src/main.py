@@ -40,6 +40,7 @@ def prepend_root_if_relative_and_glob(file_path, root_path=None):
             "Globbing not supported for absolute paths yet")
     else:
         pattern = str(file_path)  # ensure it's a string
+        print(str(list(p.resolve() for p in Path(root_path).glob(pattern))))
         return [p.resolve() for p in Path(root_path).glob(pattern)]
 
 
