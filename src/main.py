@@ -386,18 +386,22 @@ def main():
         def __init__(self, frame_data):
             self.frame_data = frame_data
 
-        def export_csv_tuples(self, file_path):
+        def export_csv_tuples(self, file_path, include_raw_data=False):
             df = self.frame_data.dataframe.copy()
             df = df.reset_index()
             df['tipe'] = list(
                 df[self.frame_data.dataframe.index.names].apply(tuple, axis=1))
             cols = [
                 'tipe'] + [col for col in df.columns if col not in self.frame_data.dataframe.index.names]
+            if not include_raw_data and 'raw_data' in cols:
+                cols.remove('raw_data')
             df_export = df[cols]
             df_export.to_csv(file_path, index=False)
 
-        def export_csv_multiindex(self, file_path):
+        def export_csv_multiindex(self, file_path, include_raw_data=False):
             df = self.frame_data.dataframe.copy()
+            if not include_raw_data and 'raw_data' in df.columns:
+                df = df.drop(columns=['raw_data'])
             df.to_csv(file_path)
 
     exporter = FrameDataExporter(frame_data)
