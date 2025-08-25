@@ -120,10 +120,12 @@ def main():
             # print((Path.cwd() / args.inputfile).resolve().parent )
             args.root_path = (Path.cwd() / args.inputfile).resolve().parent
 
+        print(args.root_path)
         yamlparser = yr.YAMLFile()
         # yamlparser.load_string(testyaml)
         # prepend_root_if_relative(file_path=args.inputfile, root_path=args.root_path))
-        yamlparser.load_file(args.inputfile)
+        yamlparser.load_file(prepend_root_if_relative(
+            file_path=args.inputfile, root_path=args.root_path))
         # validate_measurements(data)
     except (sy.YAMLError, ValueError) as e:
         print(f"Validation error: {e}")
