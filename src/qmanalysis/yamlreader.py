@@ -75,7 +75,7 @@ class YAMLFile:
                         "name": Str(),
                         "a": identifier,
                         "b": identifier,
-                        Optional("timestep"): Str
+                        Optional("timestep"): Str()
                     })
                 ),
                 Optional("angle"): Seq(
@@ -84,7 +84,7 @@ class YAMLFile:
                         "a": identifier,
                         "b": identifier,
                         "c": identifier,
-                        Optional("timestep"): Str
+                        Optional("timestep"): Str()
                     })
                 ),
                 Optional("dihedral"): Seq(
@@ -94,7 +94,7 @@ class YAMLFile:
                         "b": identifier,
                         "c": identifier,
                         "d": identifier,
-                        Optional("timestep"): Str
+                        Optional("timestep"): Str()
                     })
                 )
             }),
