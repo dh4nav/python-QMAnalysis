@@ -306,14 +306,21 @@ def main():
                 f"Could not resolve atom '{label}' for timestep '{timestep_name}' and file '{file_val}'")
             return None
         return matches[0]
-
+    # Meier
     # Ensure frame_data.dataframe has a column for each measurement
+
+    # If no timestep_name is specified in the measurement, perform for all timestep_names
     if "measurements" in yamldata:
-        timestep_names = frame_data.dataframe.index.get_level_values(
+        all_timestep_names = frame_data.dataframe.index.get_level_values(
             "timestep_name").unique().tolist()
         for mtype in ["distance", "angle", "dihedral"]:
             if mtype in yamldata["measurements"]:
                 for m in yamldata["measurements"][mtype]:
+                    # If 'timestep' is specified in measurement, use only that, else use all
+                    if "timestep" in m and m["timestep"] is not None:
+                        timestep_names = [m["timestep"]]
+                    else:
+                        timestep_names = all_timestep_names
                     results = []
                     for timestep_name in timestep_names:
                         try:
@@ -349,7 +356,16 @@ def main():
                             print(
                                 f"Error in measurement '{m['name']}' for timestep '{timestep_name}': {e}")
                             results.append(None)
-                    frame_data.dataframe[m["name"]] = results
+                    # If only one timestep, assign scalar, else assign list
+                    if len(results) == 1:
+                        frame_data.dataframe.loc[
+                            frame_data.dataframe.index.get_level_values(
+                                "timestep_name") == timestep_names[0],
+                            m["name"]
+                        ] = results[0]
+                    else:
+                        frame_data.dataframe[m["name"]] = results
+
     print("Finished measuring")
     print("Timestep data:")
     print(frame_data.dataframe)
