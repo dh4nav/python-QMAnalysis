@@ -364,7 +364,13 @@ def main():
                             m["name"]
                         ] = results[0]
                     else:
-                        frame_data.dataframe[m["name"]] = results
+                        # Assign each result to the correct rows for each timestep
+                        for timestep_name, value in zip(timestep_names, results):
+                            frame_data.dataframe.loc[
+                                frame_data.dataframe.index.get_level_values(
+                                    "timestep_name") == timestep_name,
+                                m["name"]
+                            ] = value
 
     print("Finished measuring")
     print("Timestep data:")
