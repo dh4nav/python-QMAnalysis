@@ -51,7 +51,7 @@ class XYZFile:
         print(len(atom_lines))
         print(atom_count)
 
-        if len(atom_lines) != atom_count:
+        if len(atom_lines) < atom_count:
             print(
                 f"{self.file_path}: Expected {atom_count} atom lines, but got {len(atom_lines)}")
             raise IndexError(
