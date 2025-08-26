@@ -526,12 +526,24 @@ def main():
 
                     fig.tight_layout()  # Use default tight_layout for optimal plot area
 
-                    fig.savefig(
-                        prepend_root_if_relative(
-                            file_path=graph['file'], root_path=args.root_path),
-                        dpi=graph.get("dpi", 300),
-                        format=graph.get("file_format", "tiff")
-                    )
+                    # Handle multiple file formats
+                    file_base = prepend_root_if_relative(
+                        file_path=graph['file'], root_path=args.root_path)
+                    file_formats = graph.get("file_format", "tiff")
+                    if isinstance(file_formats, list):
+                        formats_list = file_formats
+                    else:
+                        formats_list = [file_formats]
+                    for fmt in formats_list:
+                        ext = f".{fmt.lower()}"
+                        file_out = str(file_base)
+                        if not file_out.lower().endswith(ext):
+                            file_out += ext
+                        fig.savefig(
+                            file_out,
+                            dpi=graph.get("dpi", 300),
+                            format=fmt
+                        )
 
 
 if __name__ == "__main__":
