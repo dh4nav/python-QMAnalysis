@@ -278,7 +278,7 @@ def main():
     measure = mr.Measure()
 
     def resolve_atom(label, timestep_name, m):
-        file_val = m.get("file", None)
+        file_val = m
         timestep_val = timestep_name if timestep_name is not None else None
 
         def match_all(val):
