@@ -140,7 +140,8 @@ def main():
     yamldata = yamlparser.get_data()
     print(yamldata)
     for file in yamldata["files"]:
-        if file["type"].lower() == "xyz":
+        ftype = file["type"].lower()
+        if ftype == "xyz":
             if "glob" in file and file["glob"]:
                 for gfile in list(prepend_root_if_relative_and_glob(file_path=file["path"], root_path=args.root_path)):
                     xr.XYZFile(atom_data, frame_data, file_path=gfile,
@@ -148,9 +149,13 @@ def main():
             else:
                 xr.XYZFile(atom_data, frame_data, file_path=prepend_root_if_relative(
                     file_path=file["path"], root_path=args.root_path), file_name=file["name"], timestep_name=file.get("timestep", None))
-        elif file["type"].lower() == "global_constants_csv":
+        elif ftype == "gaussian_out":
+            from qmanalysis.gaussianoutreader import GaussianOutFile
+            GaussianOutFile(atom_data, frame_data, file_path=prepend_root_if_relative(
+                file_path=file["path"], root_path=args.root_path), file_name=file.get("name", None), timestep_name=file.get("timestep", None))
+        elif ftype == "global_constants_csv":
             global_constants = GlobalConstantsFile(file_path=file["path"])
-        elif file["type"].lower() == "per_file_constants_csv":
+        elif ftype == "per_file_constants_csv":
             per_file_constants = pd.read_csv(file_path=file["path"])
             frame_data = pd.merge(
                 frame_data.df, per_file_constants, how='outer', on='file_name')

@@ -43,8 +43,8 @@ class YAMLFile:
                 Map({
                     "path": Str(),
                     Optional("name"): Str(),
+                    # Acceptable types: xyz, global_constants_csv, frame_constants_csv, gaussian_out
                     "type": Str(),
-                    # Support for global_constants_csv and frame_constants_csv
                     Optional("options"): Str() | Int() | MapPattern(Str(), Str()),
                     Optional("glob"): Bool(),
                     Optional("timestep"): Str()
