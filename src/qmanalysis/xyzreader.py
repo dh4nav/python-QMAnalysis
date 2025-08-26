@@ -82,12 +82,16 @@ class XYZFile:
 
             # Optional: alias and charge
             alias = tokens[5] if len(tokens) > 5 else str(atom_index)
-            charge = float(tokens[4]) if len(tokens) > 4 else None
-            self.atom_data.dataframe.loc[(self.file_name, self.file_path, self.timestep_name, atom_index)] = {
-                "element": element,
-                "x": x,
-                "y": y,
-                "z": z,
-                "alias": alias,
+            charge = float(tokens[4]) if len(tokens) > 4 else pd.NA
+            row = {
+                "element": element if element is not None else pd.NA,
+                "x": x if x is not None else pd.NA,
+                "y": y if y is not None else pd.NA,
+                "z": z if z is not None else pd.NA,
+                "alias": alias if alias is not None else pd.NA,
                 "charge": charge
             }
+            # Only assign if not all values are NA
+            if not all(pd.isna(v) for v in row.values()):
+                self.atom_data.dataframe.loc[(
+                    self.file_name, self.file_path, self.timestep_name, atom_index)] = row
