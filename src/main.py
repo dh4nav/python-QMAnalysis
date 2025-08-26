@@ -56,10 +56,10 @@ def main():
       name: benz
     - path: "../benzene.xyz"
       type: xyz
-      name: gurk  
+      name: gurk
     - path: "../benzene.xyz"
       type: xyz
-      name: abcd  
+      name: abcd
   substitutions:
     - name: S1
       entries:
@@ -99,7 +99,7 @@ def main():
     - graph:
       - type: scatter_plot
         x: distance-Subs-bond
-        y: angle-H-O-N 
+        y: angle-H-O-N
         file: ../SB-HON.tiff
   """
 
@@ -452,7 +452,6 @@ def main():
             for graph in one_output['graph']:
                 if graph['type'].lower() == "scatter_plot":
 
-                    # x and y can be: list of column names or single column name
                     def resolve_columns(col_spec, df):
                         if isinstance(col_spec, list):
                             return [df[col] for col in col_spec]
@@ -468,14 +467,14 @@ def main():
                     y_spec = graph['y']
                     x_label = graph.get('x_label', None)
                     y_label = graph.get('y_label', None)
-                    series_by = graph.get('series_by', None)
+                    # Default to file_name
+                    series_by = graph.get('series_by', "file_name")
                     parallel_by = graph.get('parallel_by', None)
                     df = frame_data.dataframe.reset_index()
 
                     x_cols = resolve_columns(x_spec, df)
                     y_cols = resolve_columns(y_spec, df)
 
-                    # If one axis is a list and the other is a single column, broadcast the single column
                     if len(x_cols) == 1 and len(y_cols) > 1:
                         x_cols = x_cols * len(y_cols)
                     if len(y_cols) == 1 and len(x_cols) > 1:
@@ -483,6 +482,12 @@ def main():
 
                     fig, ax = plt.subplots(
                         figsize=graph.get("figsize", (8, 6)))
+
+                    # Assign a color to each file_name
+                    unique_files = df["file_name"].unique()
+                    colors = plt.cm.get_cmap("tab10", len(unique_files))
+                    file_color_map = {fname: colors(
+                        i) for i, fname in enumerate(unique_files)}
 
                     def get_label(label_list, idx, default):
                         if label_list is None:
@@ -495,31 +500,14 @@ def main():
                         else:
                             return str(label_list)
 
-                    # Series logic
-                    if series_by and parallel_by:
-                        unique_parallel = df[parallel_by].unique()
-                        for pval in unique_parallel:
-                            subdf = df[df[parallel_by] == pval]
-                            for sval in subdf[series_by].unique():
-                                ssubdf = subdf[subdf[series_by] == sval]
-                                for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
-                                    ax.scatter(
-                                        ssubdf[xcol.name], ssubdf[ycol.name],
-                                        label=f"{series_by}: {sval}, {parallel_by}: {pval}, {get_label(x_label, i, xcol.name)} vs {get_label(y_label, i, ycol.name)}"
-                                    )
-                    elif series_by:
-                        for sval in df[series_by].unique():
-                            ssubdf = df[df[series_by] == sval]
-                            for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
-                                ax.scatter(
-                                    ssubdf[xcol.name], ssubdf[ycol.name],
-                                    label=f"{series_by}: {sval}, {get_label(x_label, i, xcol.name)} vs {get_label(y_label, i, ycol.name)}"
-                                )
-                    else:
+                    # Plot each file_name as a separate series with its color and label
+                    for fname in unique_files:
+                        subdf = df[df["file_name"] == fname]
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             ax.scatter(
-                                df[xcol.name], df[ycol.name],
-                                label=f"{get_label(x_label, i, xcol.name)} vs {get_label(y_label, i, ycol.name)}"
+                                subdf[xcol.name], subdf[ycol.name],
+                                color=file_color_map[fname],
+                                label=f"{fname}: {get_label(x_label, i, xcol.name)} vs {get_label(y_label, i, ycol.name)}"
                             )
 
                     # Set axis labels
