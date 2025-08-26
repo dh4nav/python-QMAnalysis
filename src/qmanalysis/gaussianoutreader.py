@@ -76,23 +76,25 @@ class GaussianOutFile:
                 archive_lines = []
                 for idx, line in enumerate(f):
                     if idx >= last_dash_idx + 1:
-                        archive_lines.append(line.rstrip('\n'))
-                archive_block = ''.join(archive_lines)
-        # Extract values from archive block
+                        archive_lines.append(line.strip())
+                # Join with backslash to preserve separators
+                archive_block = '\\'.join(archive_lines)
 
         def extract_archive_value(key, block, is_tuple=False):
-            # Match value up to next backslash or end of string
-            m = re.search(rf'{key}=([^\\]*)', block)
+            # Case-insensitive match, up to next backslash
+            m = re.search(rf'{key}=([^\\]*)', block, re.IGNORECASE)
             if not m:
                 return pd.NA if not is_tuple else (pd.NA, pd.NA, pd.NA)
-            val = m.group(1).strip()
+            val = m.group(1).replace('\n', '').replace(' ', '').strip()
             if is_tuple:
                 vals = [v.strip() for v in val.split(',')]
+                # Only take first 3 values for dipole
                 return tuple(float(v) if v else pd.NA for v in vals[:3]) if len(vals) >= 3 else (pd.NA, pd.NA, pd.NA)
             try:
                 return float(val)
             except Exception:
                 return val
+
         zeropoint = extract_archive_value('ZeroPoint', archive_block)
         zpe = extract_archive_value('ZPE', archive_block)
         hf = extract_archive_value('HF', archive_block)
