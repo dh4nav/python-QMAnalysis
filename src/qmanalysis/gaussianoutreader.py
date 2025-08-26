@@ -73,19 +73,22 @@ class GaussianOutFile:
         archive_block = ''
         if last_dash_idx is not None:
             with self.path.open('r') as f:
+                archive_lines = []
                 for idx, line in enumerate(f):
                     if idx >= last_dash_idx + 1:
-                        archive_block += line.strip()
+                        archive_lines.append(line.rstrip('\n'))
+                archive_block = ''.join(archive_lines)
         # Extract values from archive block
 
         def extract_archive_value(key, block, is_tuple=False):
-            m = re.search(rf'{key}=([^\\]+)', block)
+            # Match value up to next backslash or end of string
+            m = re.search(rf'{key}=([^\\]*)', block)
             if not m:
                 return pd.NA if not is_tuple else (pd.NA, pd.NA, pd.NA)
-            val = m.group(1)
+            val = m.group(1).strip()
             if is_tuple:
-                vals = val.split(',')
-                return tuple(float(v) for v in vals[:3]) if len(vals) >= 3 else (pd.NA, pd.NA, pd.NA)
+                vals = [v.strip() for v in val.split(',')]
+                return tuple(float(v) if v else pd.NA for v in vals[:3]) if len(vals) >= 3 else (pd.NA, pd.NA, pd.NA)
             try:
                 return float(val)
             except Exception:
