@@ -117,27 +117,32 @@ class GaussianOutFile:
             except Exception:
                 return pd.NA
 
-        # Extract comment between 13th and 14th backslash
+        # Extract comment and charge/multiplicity from archive block
         file_comment = None
         charge = pd.NA
         multiplicity = pd.NA
-        split_block = archive_block.split('\\')
-        if len(split_block) > 16:
-            file_comment = split_block[13].strip(
-            ) if split_block[13].strip() else None
-            charge_mult_field = split_block[15].strip()
-            if charge_mult_field:
-                parts = [p.strip() for p in charge_mult_field.split(',')]
-                if len(parts) == 2:
-                    try:
-                        charge = int(parts[0]) if parts[0].isdigit(
-                        ) else float(parts[0])
-                    except Exception:
-                        charge = pd.NA
-                    try:
-                        multiplicity = int(parts[1])
-                    except Exception:
-                        multiplicity = pd.NA
+        # Split on backslash, ignore empty strings
+        split_block = [s for s in archive_block.split('\\') if s.strip()]
+        # Find the comment and charge/multiplicity
+        for i, field in enumerate(split_block):
+            # Look for the field that contains a comma and does not start with '1', '#P', or 'Freq'
+            if i > 0 and ',' in field and not field.startswith('1') and not field.startswith('#P') and not field.startswith('Freq'):
+                file_comment = field.strip() if field.strip() else None
+                # Next field should be charge/multiplicity
+                if i + 1 < len(split_block):
+                    charge_mult_field = split_block[i + 1].strip()
+                    parts = [p.strip() for p in charge_mult_field.split(',')]
+                    if len(parts) == 2:
+                        try:
+                            charge = int(parts[0]) if parts[0].isdigit(
+                            ) else float(parts[0])
+                        except Exception:
+                            charge = pd.NA
+                        try:
+                            multiplicity = int(parts[1])
+                        except Exception:
+                            multiplicity = pd.NA
+                break
         # DEBUG: Print the archive block (commented out)
         # print("\n--- Archive Block ---\n", archive_block,
         #       "\n--- End Archive Block ---\n")
