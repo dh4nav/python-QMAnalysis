@@ -70,15 +70,19 @@ class GaussianOutFile:
                 "charge": charge
             }
         # Archive block: read only the lines after last dashed line
+        # Robust archive block detection
         archive_block = ''
-        if last_dash_idx is not None:
-            with self.path.open('r') as f:
-                archive_lines = []
-                for idx, line in enumerate(f):
-                    if idx >= last_dash_idx + 1:
-                        archive_lines.append(line.strip())
-                # Join with backslash to preserve separators
-                archive_block = '\\'.join(archive_lines)
+        with self.path.open('r') as f:
+            lines = [line.rstrip('\n') for line in f]
+        archive_start = None
+        for i in range(len(lines) - 1):
+            if re.match(r'-{5,}', lines[i]) and re.match(r'\s*1\\', lines[i + 1]):
+                archive_start = i + 1
+                break
+        if archive_start is not None:
+            # Archive block is all lines after archive_start
+            archive_lines = lines[archive_start:]
+            archive_block = '\\'.join([line.strip() for line in archive_lines])
 
         def extract_archive_value(key, block, is_tuple=False):
             # Case-insensitive match, up to next backslash
