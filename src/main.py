@@ -323,8 +323,10 @@ def main():
                     else:
                         timestep_names = all_timestep_names
                     results = []
-                    for entry in frame_data.dataframe.iterrows():
-                        if entry[1]["timestep_name"] not in timestep_names:
+                    for idx, row in frame_data.dataframe.iterrows():
+                        timestep_name = idx[frame_data.dataframe.index.names.index(
+                            "timestep_name")]
+                        if timestep_name not in timestep_names:
                             results.append(pd.NA)
                         else:
                             try:
