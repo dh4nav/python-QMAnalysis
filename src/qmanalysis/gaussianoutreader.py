@@ -70,17 +70,16 @@ class GaussianOutFile:
                 "charge": charge
             }
         # Archive block: read only the lines after last dashed line
-        # Robust archive block detection
+        # Archive block starts with line beginning '1\'
         archive_block = ''
         with self.path.open('r') as f:
             lines = [line.rstrip('\n') for line in f]
         archive_start = None
-        for i in range(len(lines) - 1):
-            if re.match(r'-{5,}', lines[i]) and re.match(r'\s*1\\', lines[i + 1]):
-                archive_start = i + 1
+        for i, line in enumerate(lines):
+            if re.match(r'^\s*1\\1\\FAU-CCC', line):
+                archive_start = i
                 break
         if archive_start is not None:
-            # Archive block is all lines after archive_start
             archive_lines = lines[archive_start:]
             archive_block = '\\'.join([line.strip() for line in archive_lines])
 
