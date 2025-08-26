@@ -85,27 +85,70 @@ class GaussianOutFile:
             # Remove all line breaks to make value extraction resilient
             archive_block = archive_block.replace('\n', '').replace('\r', '')
 
+        def is_plausible(val, key=None):
+            # Check for plausible float values
+            if val is pd.NA or val is None:
+                return False
+            try:
+                fval = float(val)
+                if not (-1e10 < fval < 1e10):
+                    return False
+                if str(val).lower() in ['nan', 'inf', '-inf', '']:
+                    return False
+                if re.match(r'.*e-$', str(val)):
+                    return False
+                return True
+            except Exception:
+                return False
+
         def extract_archive_value(key, block, is_tuple=False):
-            # Case-insensitive match, up to next backslash
             m = re.search(rf'{key}=([^\\]*)', block, re.IGNORECASE)
             if not m:
                 return pd.NA if not is_tuple else (pd.NA, pd.NA, pd.NA)
             val = m.group(1).replace('\n', '').replace(' ', '').strip()
             if is_tuple:
                 vals = [v.strip() for v in val.split(',')]
-                # Only take first 3 values for dipole
-                return tuple(float(v) if v else pd.NA for v in vals[:3]) if len(vals) >= 3 else (pd.NA, pd.NA, pd.NA)
+                tup = tuple(float(v) if is_plausible(v) else pd.NA for v in vals[:3]) if len(
+                    vals) >= 3 else (pd.NA, pd.NA, pd.NA)
+                return tup
             try:
-                return float(val)
+                fval = float(val)
+                return fval if is_plausible(fval, key) else pd.NA
             except Exception:
-                return val
-        # DEBUG: Print the archive block
-        print("\n--- Archive Block ---\n", archive_block,
-              "\n--- End Archive Block ---\n")
+                return pd.NA
+
+        # Extract comment line between 12th and 13th backslash
+        file_comment = None
+        charge = pd.NA
+        multiplicity = pd.NA
+        split_block = archive_block.split('\\')
+        if len(split_block) > 14:
+            file_comment = split_block[12].strip(
+            ) if split_block[12].strip() else None
+            charge_mult_field = split_block[13].strip()
+            if charge_mult_field:
+                parts = [p.strip() for p in charge_mult_field.split(',')]
+                if len(parts) == 2:
+                    try:
+                        charge = int(parts[0]) if parts[0].isdigit(
+                        ) else float(parts[0])
+                    except Exception:
+                        charge = pd.NA
+                    try:
+                        multiplicity = int(parts[1])
+                    except Exception:
+                        multiplicity = pd.NA
+        # DEBUG: Print the archive block (commented out)
+        # print("\n--- Archive Block ---\n", archive_block,
+        #       "\n--- End Archive Block ---\n")
 
         # DEBUG: Print extracted values
         def debug_print(key, value):
             print(f"Extracted {key}: {value}")
+
+        debug_print('Comment', file_comment)
+        debug_print('Charge', charge)
+        debug_print('Multiplicity', multiplicity)
 
         zeropoint = extract_archive_value('ZeroPoint', archive_block)
         debug_print('ZeroPoint', zeropoint)
@@ -128,7 +171,9 @@ class GaussianOutFile:
             "raw_data": '\n'.join(raw_lines),
             "energy": hf,
             "zero-point energy": zeropoint,
-            "file_comment": None,
+            "file_comment": file_comment,
+            "charge": charge,
+            "multiplicity": multiplicity,
             "ZPE": zpe,
             "Thermal": thermal,
             "RMSD": rmsd,
@@ -139,7 +184,7 @@ class GaussianOutFile:
         self.frame_data.dataframe.loc[(
             self.file_name, self.file_path, self.timestep_name)] = row
         expected_cols = ["raw_data", "energy", "zero-point energy",
-                         "file_comment", "ZPE", "Thermal", "RMSD", "RMSF", "dipole", "nimag"]
+                         "file_comment", "charge", "multiplicity", "ZPE", "Thermal", "RMSD", "RMSF", "dipole", "nimag"]
         self.frame_data.dataframe = self.frame_data.dataframe.reindex(
             columns=expected_cols)
 
