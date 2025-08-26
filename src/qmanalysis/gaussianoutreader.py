@@ -37,11 +37,18 @@ class GaussianOutFile:
         atoms = []
         for line in atom_lines:
             tokens = line.split()
+            # Skip header/separator lines and only parse lines with valid atom data
             if len(tokens) < 6:
                 continue
-            atomic_num = int(tokens[1])
+            try:
+                atomic_num = int(tokens[1])
+            except (ValueError, IndexError):
+                continue
+            try:
+                x, y, z = float(tokens[3]), float(tokens[4]), float(tokens[5])
+            except (ValueError, IndexError):
+                continue
             element = self._atomic_number_to_symbol(atomic_num)
-            x, y, z = float(tokens[3]), float(tokens[4]), float(tokens[5])
             atom_index = len(atoms)
             alias = str(atom_index)
             charge = None
