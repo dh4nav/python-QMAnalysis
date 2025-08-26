@@ -332,9 +332,11 @@ def main():
                             try:
                                 if mtype == "distance":
                                     idx_a = resolve_atom(
-                                        m["a"], None, entry.index[0])
+                                        m["a"], None, idx[frame_data.dataframe.index.names.index(
+                                            "file_name")])
                                     idx_b = resolve_atom(
-                                        m["b"], None, entry.index[0])
+                                        m["b"], None, idx[frame_data.dataframe.index.names.index(
+                                            "file_name")])
                                     if idx_a is None or idx_b is None:
                                         val = pd.NA
                                     else:
@@ -342,11 +344,14 @@ def main():
                                             atom_data, idx_a, idx_b)
                                 elif mtype == "angle":
                                     idx_a = resolve_atom(
-                                        m["a"], None, entry.index[0])
+                                        m["a"], None, idx[frame_data.dataframe.index.names.index(
+                                            "file_name")])
                                     idx_b = resolve_atom(
-                                        m["b"], None, entry.index[0])
+                                        m["b"], None, idx[frame_data.dataframe.index.names.index(
+                                            "file_name")])
                                     idx_c = resolve_atom(
-                                        m["c"], None, entry.index[0])
+                                        m["c"], None, idx[frame_data.dataframe.index.names.index(
+                                            "file_name")])
                                     if None in (idx_a, idx_b, idx_c):
                                         val = pd.NA
                                     else:
@@ -354,13 +359,17 @@ def main():
                                             atom_data, idx_a, idx_b, idx_c)
                                 elif mtype == "dihedral":
                                     idx_a = resolve_atom(
-                                        m["a"], None, entry.index[0])
+                                        m["a"], None, idx[frame_data.dataframe.index.names.index(
+                                            "file_name")])
                                     idx_b = resolve_atom(
-                                        m["b"], None, entry.index[0])
+                                        m["b"], None, idx[frame_data.dataframe.index.names.index(
+                                            "file_name")])
                                     idx_c = resolve_atom(
-                                        m["c"], None, entry.index[0])
+                                        m["c"], None, idx[frame_data.dataframe.index.names.index(
+                                            "file_name")])
                                     idx_d = resolve_atom(
-                                        m["d"], None, entry.index[0])
+                                        m["d"], None, idx[frame_data.dataframe.index.names.index(
+                                            "file_name")])
                                     if None in (idx_a, idx_b, idx_c, idx_d):
                                         val = pd.NA
                                     else:
