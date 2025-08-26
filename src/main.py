@@ -484,7 +484,9 @@ def main():
                     fig, ax = plt.subplots(
                         figsize=graph.get("figsize", (8, 6)))
 
-                    def get_label(label_list, idx):
+                    def get_label(label_list, idx, default):
+                        if label_list is None:
+                            return default
                         if isinstance(label_list, list):
                             if idx < len(label_list):
                                 return label_list[idx]
@@ -503,7 +505,7 @@ def main():
                                 for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                                     ax.scatter(
                                         ssubdf[xcol.name], ssubdf[ycol.name],
-                                        label=f"{series_by}: {sval}, {parallel_by}: {pval}, {get_label(x_label, i)} vs {get_label(y_label, i)}"
+                                        label=f"{series_by}: {sval}, {parallel_by}: {pval}, {get_label(x_label, i, xcol.name)} vs {get_label(y_label, i, ycol.name)}"
                                     )
                     elif series_by:
                         for sval in df[series_by].unique():
@@ -511,13 +513,13 @@ def main():
                             for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                                 ax.scatter(
                                     ssubdf[xcol.name], ssubdf[ycol.name],
-                                    label=f"{series_by}: {sval}, {get_label(x_label, i)} vs {get_label(y_label, i)}"
+                                    label=f"{series_by}: {sval}, {get_label(x_label, i, xcol.name)} vs {get_label(y_label, i, ycol.name)}"
                                 )
                     else:
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             ax.scatter(
                                 df[xcol.name], df[ycol.name],
-                                label=f"{get_label(x_label, i)} vs {get_label(y_label, i)}"
+                                label=f"{get_label(x_label, i, xcol.name)} vs {get_label(y_label, i, ycol.name)}"
                             )
 
                     # Set axis labels
