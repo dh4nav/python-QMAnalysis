@@ -330,9 +330,9 @@ def main():
                             try:
                                 if mtype == "distance":
                                     idx_a = resolve_atom(
-                                        m["a"], timestep_name, entry.index[0])
+                                        m["a"], None, entry.index[0])
                                     idx_b = resolve_atom(
-                                        m["b"], timestep_name, entry.index[0])
+                                        m["b"], None, entry.index[0])
                                     if idx_a is None or idx_b is None:
                                         val = pd.NA
                                     else:
@@ -340,11 +340,11 @@ def main():
                                             atom_data, idx_a, idx_b)
                                 elif mtype == "angle":
                                     idx_a = resolve_atom(
-                                        m["a"], timestep_name, entry.index[0])
+                                        m["a"], None, entry.index[0])
                                     idx_b = resolve_atom(
-                                        m["b"], timestep_name, entry.index[0])
+                                        m["b"], None, entry.index[0])
                                     idx_c = resolve_atom(
-                                        m["c"], timestep_name, entry.index[0])
+                                        m["c"], None, entry.index[0])
                                     if None in (idx_a, idx_b, idx_c):
                                         val = pd.NA
                                     else:
@@ -352,13 +352,13 @@ def main():
                                             atom_data, idx_a, idx_b, idx_c)
                                 elif mtype == "dihedral":
                                     idx_a = resolve_atom(
-                                        m["a"], timestep_name, entry.index[0])
+                                        m["a"], None, entry.index[0])
                                     idx_b = resolve_atom(
-                                        m["b"], timestep_name, entry.index[0])
+                                        m["b"], None, entry.index[0])
                                     idx_c = resolve_atom(
-                                        m["c"], timestep_name, entry.index[0])
+                                        m["c"], None, entry.index[0])
                                     idx_d = resolve_atom(
-                                        m["d"], timestep_name, entry.index[0])
+                                        m["d"], None, entry.index[0])
                                     if None in (idx_a, idx_b, idx_c, idx_d):
                                         val = pd.NA
                                     else:
@@ -367,7 +367,7 @@ def main():
                                 results.append(val)
                             except Exception as e:
                                 print(
-                                    f"Error in measurement '{m['name']}' for timestep '{timestep_name}': {e}")
+                                    f"Error in measurement '{m['name']}' for name '{entry.index[0]}': {e}")
                                 results.append(None)
                     # If only one timestep, assign scalar, else assign list
                     if len(results) == 1:
