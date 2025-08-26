@@ -80,9 +80,9 @@ class GaussianOutFile:
                 archive_start = i
                 break
         if archive_start is not None:
-            archive_lines = lines[archive_start:]
-            archive_block = '\\'.join([line.strip() for line in archive_lines])
-            # Remove all line breaks to make value extraction resilient
+            # Strip leading/trailing spaces from each line before joining
+            archive_lines = [line.strip() for line in lines[archive_start:]]
+            archive_block = '\\'.join(archive_lines)
             archive_block = archive_block.replace('\n', '').replace('\r', '')
 
         def is_plausible(val, key=None):
