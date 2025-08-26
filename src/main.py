@@ -489,26 +489,23 @@ def main():
                     file_color_map = {fname: colors(
                         i) for i, fname in enumerate(unique_files)}
 
-                    def get_label(label_list, idx, default):
-                        if label_list is None:
-                            return default
-                        if isinstance(label_list, list):
-                            if idx < len(label_list):
-                                return label_list[idx]
-                            else:
-                                return str(label_list[0])
-                        else:
-                            return str(label_list)
-
-                    # Plot each file_name as a separate series with its color and label
+                    # Plot each file_name as a separate series with its color
+                    handles = []
+                    labels = []
                     for fname in unique_files:
                         subdf = df[df["file_name"] == fname]
+                        # Plot all points for this file in one call for each file
+                        # Use the first x/y column pair for plotting, but you can adapt for multiple columns if needed
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
-                            ax.scatter(
+                            sc = ax.scatter(
                                 subdf[xcol.name], subdf[ycol.name],
                                 color=file_color_map[fname],
-                                label=f"{fname}: {get_label(x_label, i, xcol.name)} vs {get_label(y_label, i, ycol.name)}"
+                                label=fname if fname not in labels else None
                             )
+                            if fname not in labels:
+                                handles.append(sc)
+                                labels.append(fname)
+                            # Only add one legend entry per file_name/color
 
                     # Set axis labels
                     if x_label:
@@ -522,7 +519,7 @@ def main():
                     else:
                         ax.set_ylabel(', '.join([col.name for col in y_cols]))
 
-                    ax.legend()
+                    ax.legend(handles, labels)
                     fig.savefig(
                         prepend_root_if_relative(
                             file_path=graph['file'], root_path=args.root_path),
