@@ -18,6 +18,8 @@ class Measure:
         return vector1
 
     def distance(self, atom_data, atom_index1, atom_index2):
+        print(np.linalg.norm((atom_data.dataframe.loc[atom_index1, [
+              "x", "y", "z"]] - atom_data.dataframe.loc[atom_index2, ["x", "y", "z"]]).to_numpy()))
         return np.linalg.norm((atom_data.dataframe.loc[atom_index1, ["x", "y", "z"]] - atom_data.dataframe.loc[atom_index2, ["x", "y", "z"]]).to_numpy())
 
     def angle(self, atom_data, atom_index1, atom_index2, atom_index3):
@@ -32,7 +34,7 @@ class Measure:
         dotprod = np.dot(vector1, vector2)
         angle_rad = np.arccos(dotprod)
         angle_deg = np.degrees(angle_rad)
-
+        print(angle_deg)
         return angle_deg
 
     def plane_normal(self, atom_data, atom_index1, atom_index2, atom_index3):
