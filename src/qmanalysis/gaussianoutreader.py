@@ -117,15 +117,15 @@ class GaussianOutFile:
             except Exception:
                 return pd.NA
 
-        # Extract comment line between 12th and 13th backslash
+        # Extract comment between 13th and 14th backslash
         file_comment = None
         charge = pd.NA
         multiplicity = pd.NA
         split_block = archive_block.split('\\')
-        if len(split_block) > 14:
-            file_comment = split_block[12].strip(
-            ) if split_block[12].strip() else None
-            charge_mult_field = split_block[13].strip()
+        if len(split_block) > 16:
+            file_comment = split_block[13].strip(
+            ) if split_block[13].strip() else None
+            charge_mult_field = split_block[15].strip()
             if charge_mult_field:
                 parts = [p.strip() for p in charge_mult_field.split(',')]
                 if len(parts) == 2:
