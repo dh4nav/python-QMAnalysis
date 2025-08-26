@@ -101,6 +101,41 @@ class GaussianOutFile:
             except Exception:
                 return False
 
+        # Robust extraction of comment and charge/multiplicity
+        file_comment = None
+        charge = pd.NA
+        multiplicity = pd.NA
+        split_block = [s.strip()
+                       for s in archive_block.split('\\') if s.strip()]
+        # List of element symbols for detection
+        element_symbols = {'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh',
+                           'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U'}
+        atom_block_start = None
+        for i, field in enumerate(split_block):
+            # Detect atom block start
+            if ',' in field:
+                first_token = field.split(',')[0]
+                if first_token in element_symbols:
+                    atom_block_start = i
+                    break
+        # Comment is the field before atom block
+        if atom_block_start and atom_block_start > 0:
+            file_comment = split_block[atom_block_start-1]
+        # Charge/multiplicity is the field before the comment
+        if atom_block_start and atom_block_start > 1:
+            charge_mult_field = split_block[atom_block_start-2]
+            parts = [p.strip() for p in charge_mult_field.split(',')]
+            if len(parts) == 2:
+                try:
+                    charge = int(parts[0]) if parts[0].isdigit(
+                    ) else float(parts[0])
+                except Exception:
+                    charge = pd.NA
+                try:
+                    multiplicity = int(parts[1])
+                except Exception:
+                    multiplicity = pd.NA
+
         def extract_archive_value(key, block, is_tuple=False):
             m = re.search(rf'{key}=([^\\]*)', block, re.IGNORECASE)
             if not m:
@@ -116,33 +151,6 @@ class GaussianOutFile:
                 return fval if is_plausible(fval, key) else pd.NA
             except Exception:
                 return pd.NA
-
-        # Extract comment and charge/multiplicity from archive block
-        file_comment = None
-        charge = pd.NA
-        multiplicity = pd.NA
-        # Split on backslash, ignore empty strings
-        split_block = [s for s in archive_block.split('\\') if s.strip()]
-        # Find the comment and charge/multiplicity
-        for i, field in enumerate(split_block):
-            # Look for the field that contains a comma and does not start with '1', '#P', or 'Freq'
-            if i > 0 and ',' in field and not field.startswith('1') and not field.startswith('#P') and not field.startswith('Freq'):
-                file_comment = field.strip() if field.strip() else None
-                # Next field should be charge/multiplicity
-                if i + 1 < len(split_block):
-                    charge_mult_field = split_block[i + 1].strip()
-                    parts = [p.strip() for p in charge_mult_field.split(',')]
-                    if len(parts) == 2:
-                        try:
-                            charge = int(parts[0]) if parts[0].isdigit(
-                            ) else float(parts[0])
-                        except Exception:
-                            charge = pd.NA
-                        try:
-                            multiplicity = int(parts[1])
-                        except Exception:
-                            multiplicity = pd.NA
-                break
         # DEBUG: Print the archive block (commented out)
         # print("\n--- Archive Block ---\n", archive_block,
         #       "\n--- End Archive Block ---\n")
