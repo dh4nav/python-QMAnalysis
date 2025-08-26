@@ -30,6 +30,8 @@ class YAMLFile:
         from strictyaml import Map, Seq, Str, Int, MapPattern, Optional, Regex, Bool
 
         identifier = Str() | Int()
+        multi_identifier = Seq(identifier)
+        any_identifier = Str() | Int() | multi_identifier
         valid_substitution = Regex(r"S\d+")
 
         return Map({
@@ -113,8 +115,10 @@ class YAMLFile:
                     Optional("graph"): Seq(
                         Map({
                             "type": Str(),
-                            "x": identifier,
-                            "y": identifier,
+                            "x": any_identifier,  # Accepts str, int, or list
+                            "y": any_identifier,  # Accepts str, int, or list
+                            Optional("x_label"): Str() | Seq(Str()),
+                            Optional("y_label"): Str() | Seq(Str()),
                             Optional("series_by"): Str(),
                             Optional("parallel_by"): Str(),
                             "file": Str(),

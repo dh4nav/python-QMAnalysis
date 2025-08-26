@@ -451,45 +451,94 @@ def main():
         if 'graph' in one_output:
             for graph in one_output['graph']:
                 if graph['type'].lower() == "scatter_plot":
-                    x_col = graph['x']
-                    y_col = graph['y']
+
+                    # x and y can be: list of column names or single column name
+                    def resolve_columns(col_spec, df):
+                        if isinstance(col_spec, list):
+                            return [df[col] for col in col_spec]
+                        elif isinstance(col_spec, str):
+                            return [df[col_spec]]
+                        elif isinstance(col_spec, int):
+                            return [df.iloc[:, col_spec]]
+                        else:
+                            raise ValueError(
+                                f"Unsupported column spec: {col_spec}")
+
+                    x_spec = graph['x']
+                    y_spec = graph['y']
+                    x_label = graph.get('x_label', None)
+                    y_label = graph.get('y_label', None)
                     series_by = graph.get('series_by', None)
                     parallel_by = graph.get('parallel_by', None)
                     df = frame_data.dataframe.reset_index()
 
+                    x_cols = resolve_columns(x_spec, df)
+                    y_cols = resolve_columns(y_spec, df)
+
+                    # If one axis is a list and the other is a single column, broadcast the single column
+                    if len(x_cols) == 1 and len(y_cols) > 1:
+                        x_cols = x_cols * len(y_cols)
+                    if len(y_cols) == 1 and len(x_cols) > 1:
+                        y_cols = y_cols * len(x_cols)
+
+                    fig, ax = plt.subplots(
+                        figsize=graph.get("figsize", (8, 6)))
+
+                    def get_label(label_list, idx):
+                        if isinstance(label_list, list):
+                            if idx < len(label_list):
+                                return label_list[idx]
+                            else:
+                                return str(label_list[0])
+                        else:
+                            return str(label_list)
+
+                    # Series logic
                     if series_by and parallel_by:
-                        # Group by parallel_by, then plot series_by within each group
                         unique_parallel = df[parallel_by].unique()
-                        fig, ax = plt.subplots(
-                            figsize=graph.get("figsize", (8, 6)))
                         for pval in unique_parallel:
                             subdf = df[df[parallel_by] == pval]
                             for sval in subdf[series_by].unique():
                                 ssubdf = subdf[subdf[series_by] == sval]
-                                ax.plot(ssubdf[x_col], ssubdf[y_col], marker='o',
-                                        label=f"{series_by}: {sval}, {parallel_by}: {pval}")
-                        ax.set_xlabel(x_col)
-                        ax.set_ylabel(y_col)
-                        ax.legend()
-                        fig.savefig(prepend_root_if_relative(file_path=graph['file'], root_path=args.root_path), dpi=graph.get(
-                            "dpi", 300), format=graph.get("file_format", "tiff"))
+                                for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
+                                    ax.scatter(
+                                        ssubdf[xcol.name], ssubdf[ycol.name],
+                                        label=f"{series_by}: {sval}, {parallel_by}: {pval}, {get_label(x_label, i)} vs {get_label(y_label, i)}"
+                                    )
                     elif series_by:
-                        fig, ax = plt.subplots(
-                            figsize=graph.get("figsize", (8, 6)))
                         for sval in df[series_by].unique():
                             ssubdf = df[df[series_by] == sval]
-                            ax.plot(ssubdf[x_col], ssubdf[y_col],
-                                    marker='o', label=f"{series_by}: {sval}")
-                        ax.set_xlabel(x_col)
-                        ax.set_ylabel(y_col)
-                        ax.legend()
-                        fig.savefig(prepend_root_if_relative(file_path=graph['file'], root_path=args.root_path), dpi=graph.get(
-                            "dpi", 300), format=graph.get("file_format", "tiff"))
+                            for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
+                                ax.scatter(
+                                    ssubdf[xcol.name], ssubdf[ycol.name],
+                                    label=f"{series_by}: {sval}, {get_label(x_label, i)} vs {get_label(y_label, i)}"
+                                )
                     else:
-                        plot = df.plot.scatter(x=x_col, y=y_col)
-                        fig = plot.get_figure()
-                        fig.savefig(prepend_root_if_relative(file_path=graph['file'], root_path=args.root_path), dpi=graph.get(
-                            "dpi", 300), format=graph.get("file_format", "tiff"))
+                        for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
+                            ax.scatter(
+                                df[xcol.name], df[ycol.name],
+                                label=f"{get_label(x_label, i)} vs {get_label(y_label, i)}"
+                            )
+
+                    # Set axis labels
+                    if x_label:
+                        ax.set_xlabel(', '.join(x_label) if isinstance(
+                            x_label, list) else str(x_label))
+                    else:
+                        ax.set_xlabel(', '.join([col.name for col in x_cols]))
+                    if y_label:
+                        ax.set_ylabel(', '.join(y_label) if isinstance(
+                            y_label, list) else str(y_label))
+                    else:
+                        ax.set_ylabel(', '.join([col.name for col in y_cols]))
+
+                    ax.legend()
+                    fig.savefig(
+                        prepend_root_if_relative(
+                            file_path=graph['file'], root_path=args.root_path),
+                        dpi=graph.get("dpi", 300),
+                        format=graph.get("file_format", "tiff")
+                    )
 
 
 if __name__ == "__main__":
