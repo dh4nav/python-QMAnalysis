@@ -323,55 +323,57 @@ def main():
                     else:
                         timestep_names = all_timestep_names
                     results = []
-                    for timestep_name in timestep_names:
-                        try:
-                            if mtype == "distance":
-                                idx_a = resolve_atom(m["a"], timestep_name, m)
-                                idx_b = resolve_atom(m["b"], timestep_name, m)
-                                if idx_a is None or idx_b is None:
-                                    val = None
-                                else:
-                                    val = measure.distance(
-                                        atom_data, idx_a, idx_b)
-                            elif mtype == "angle":
-                                idx_a = resolve_atom(m["a"], timestep_name, m)
-                                idx_b = resolve_atom(m["b"], timestep_name, m)
-                                idx_c = resolve_atom(m["c"], timestep_name, m)
-                                if None in (idx_a, idx_b, idx_c):
-                                    val = None
-                                else:
-                                    val = measure.angle(
-                                        atom_data, idx_a, idx_b, idx_c)
-                            elif mtype == "dihedral":
-                                idx_a = resolve_atom(m["a"], timestep_name, m)
-                                idx_b = resolve_atom(m["b"], timestep_name, m)
-                                idx_c = resolve_atom(m["c"], timestep_name, m)
-                                idx_d = resolve_atom(m["d"], timestep_name, m)
-                                if None in (idx_a, idx_b, idx_c, idx_d):
-                                    val = None
-                                else:
-                                    val = measure.dihedral(
-                                        atom_data, idx_a, idx_b, idx_c, idx_d)
-                            results.append(val)
-                        except Exception as e:
-                            print(
-                                f"Error in measurement '{m['name']}' for timestep '{timestep_name}': {e}")
-                            results.append(None)
+                    for entry in frame_data.dataframe.iterrows():
+                        if entry[1]["timestep_name"] not in timestep_names:
+                            results.append(pd.NA)
+                        else:
+                            try:
+                                if mtype == "distance":
+                                    idx_a = resolve_atom(
+                                        m["a"], timestep_name, entry.index[0])
+                                    idx_b = resolve_atom(
+                                        m["b"], timestep_name, entry.index[0])
+                                    if idx_a is None or idx_b is None:
+                                        val = pd.NA
+                                    else:
+                                        val = measure.distance(
+                                            atom_data, idx_a, idx_b)
+                                elif mtype == "angle":
+                                    idx_a = resolve_atom(
+                                        m["a"], timestep_name, entry.index[0])
+                                    idx_b = resolve_atom(
+                                        m["b"], timestep_name, entry.index[0])
+                                    idx_c = resolve_atom(
+                                        m["c"], timestep_name, entry.index[0])
+                                    if None in (idx_a, idx_b, idx_c):
+                                        val = pd.NA
+                                    else:
+                                        val = measure.angle(
+                                            atom_data, idx_a, idx_b, idx_c)
+                                elif mtype == "dihedral":
+                                    idx_a = resolve_atom(
+                                        m["a"], timestep_name, entry.index[0])
+                                    idx_b = resolve_atom(
+                                        m["b"], timestep_name, entry.index[0])
+                                    idx_c = resolve_atom(
+                                        m["c"], timestep_name, entry.index[0])
+                                    idx_d = resolve_atom(
+                                        m["d"], timestep_name, entry.index[0])
+                                    if None in (idx_a, idx_b, idx_c, idx_d):
+                                        val = pd.NA
+                                    else:
+                                        val = measure.dihedral(
+                                            atom_data, idx_a, idx_b, idx_c, idx_d)
+                                results.append(val)
+                            except Exception as e:
+                                print(
+                                    f"Error in measurement '{m['name']}' for timestep '{timestep_name}': {e}")
+                                results.append(None)
                     # If only one timestep, assign scalar, else assign list
                     if len(results) == 1:
-                        frame_data.dataframe.loc[
-                            frame_data.dataframe.index.get_level_values(
-                                "timestep_name") == timestep_names[0],
-                            m["name"]
-                        ] = results[0]
+                        frame_data.dataframe[m["name"]] = results[0]
                     else:
-                        # Assign each result to the correct rows for each timestep
-                        for timestep_name, value in zip(timestep_names, results):
-                            frame_data.dataframe.loc[
-                                frame_data.dataframe.index.get_level_values(
-                                    "timestep_name") == timestep_name,
-                                m["name"]
-                            ] = value
+                        frame_data.dataframe[m["name"]] = results
 
     print("Finished measuring")
     print("Timestep data:")
