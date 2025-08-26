@@ -82,6 +82,8 @@ class GaussianOutFile:
         if archive_start is not None:
             archive_lines = lines[archive_start:]
             archive_block = '\\'.join([line.strip() for line in archive_lines])
+            # Remove all line breaks to make value extraction resilient
+            archive_block = archive_block.replace('\n', '').replace('\r', '')
 
         def extract_archive_value(key, block, is_tuple=False):
             # Case-insensitive match, up to next backslash
