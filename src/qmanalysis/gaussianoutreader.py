@@ -94,15 +94,30 @@ class GaussianOutFile:
                 return float(val)
             except Exception:
                 return val
+        # DEBUG: Print the archive block
+        print("\n--- Archive Block ---\n", archive_block,
+              "\n--- End Archive Block ---\n")
+
+        # DEBUG: Print extracted values
+        def debug_print(key, value):
+            print(f"Extracted {key}: {value}")
 
         zeropoint = extract_archive_value('ZeroPoint', archive_block)
+        debug_print('ZeroPoint', zeropoint)
         zpe = extract_archive_value('ZPE', archive_block)
+        debug_print('ZPE', zpe)
         hf = extract_archive_value('HF', archive_block)
+        debug_print('HF', hf)
         thermal = extract_archive_value('Thermal', archive_block)
+        debug_print('Thermal', thermal)
         rmsd = extract_archive_value('RMSD', archive_block)
+        debug_print('RMSD', rmsd)
         rmsf = extract_archive_value('RMSF', archive_block)
+        debug_print('RMSF', rmsf)
         dipole = extract_archive_value('Dipole', archive_block, is_tuple=True)
+        debug_print('Dipole', dipole)
         nimag = extract_archive_value('NIMag', archive_block)
+        debug_print('NIMag', nimag)
         # Save to frame_data.dataframe
         row = {
             "raw_data": '\n'.join(raw_lines),
