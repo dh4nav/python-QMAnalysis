@@ -378,7 +378,8 @@ def main():
                                 results.append(val)
                             except Exception as e:
                                 print(
-                                    f"Error in measurement '{m['name']}' for name '{entry.index[0]}': {e}")
+                                    f"Error in measurement '{m['name']}' for name '{idx[frame_data.dataframe.index.names.index(
+                                        "file_name")]}': {e}")
                                 results.append(None)
                     # If only one timestep, assign scalar, else assign list
                     if len(results) == 1:
