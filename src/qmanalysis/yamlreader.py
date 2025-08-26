@@ -123,6 +123,7 @@ class YAMLFile:
                             Optional("parallel_by"): Str(),
                             "file": Str(),
                             Optional("file_format"): Str(),
+                            Optional("title"): Str(),
                             Optional("dpi"): Int(),
                             Optional("figsize"): Seq(Int())
                         })

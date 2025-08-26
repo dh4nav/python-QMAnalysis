@@ -494,8 +494,6 @@ def main():
                     labels = []
                     for fname in unique_files:
                         subdf = df[df["file_name"] == fname]
-                        # Plot all points for this file in one call for each file
-                        # Use the first x/y column pair for plotting, but you can adapt for multiple columns if needed
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             sc = ax.scatter(
                                 subdf[xcol.name], subdf[ycol.name],
@@ -505,7 +503,6 @@ def main():
                             if fname not in labels:
                                 handles.append(sc)
                                 labels.append(fname)
-                            # Only add one legend entry per file_name/color
 
                     # Set axis labels
                     if x_label:
@@ -519,7 +516,16 @@ def main():
                     else:
                         ax.set_ylabel(', '.join([col.name for col in y_cols]))
 
-                    ax.legend(handles, labels)
+                    # Set plot title if provided
+                    if "title" in graph and graph["title"]:
+                        ax.set_title(graph["title"])
+
+                    # Make legend smaller and place it outside the plot area
+                    ax.legend(handles, labels, loc='upper left', bbox_to_anchor=(
+                        1.05, 1), fontsize='small', borderaxespad=0.)
+
+                    fig.tight_layout(rect=[0, 0, 0.85, 1])
+
                     fig.savefig(
                         prepend_root_if_relative(
                             file_path=graph['file'], root_path=args.root_path),
