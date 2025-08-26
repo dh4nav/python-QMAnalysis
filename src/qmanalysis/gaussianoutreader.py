@@ -95,7 +95,7 @@ class GaussianOutFile:
         nimag = extract_archive_value('NIMag', archive_block)
 
         # Save to frame_data.dataframe
-        self.frame_data.dataframe.loc[(self.file_name, self.file_path, self.timestep_name)] = {
+        row = {
             "raw_data": '\n'.join(lines),
             "energy": hf,
             "zero-point energy": zeropoint,
@@ -107,6 +107,13 @@ class GaussianOutFile:
             "dipole": dipole,
             "nimag": nimag
         }
+        self.frame_data.dataframe.loc[(
+            self.file_name, self.file_path, self.timestep_name)] = row
+        # Ensure all columns are present
+        expected_cols = ["raw_data", "energy", "zero-point energy",
+                         "file_comment", "ZPE", "Thermal", "RMSD", "RMSF", "dipole", "nimag"]
+        self.frame_data.dataframe = self.frame_data.dataframe.reindex(
+            columns=expected_cols)
 
     @staticmethod
     def _atomic_number_to_symbol(num):
