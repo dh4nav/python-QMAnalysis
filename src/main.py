@@ -522,9 +522,9 @@ def main():
 
                     # Make legend smaller and place it outside the plot area
                     ax.legend(handles, labels, loc='upper left', bbox_to_anchor=(
-                        1.05, 1), fontsize='small', borderaxespad=0.)
+                        1.01, 1), fontsize='small', borderaxespad=0.)
 
-                    fig.tight_layout(rect=[0, 0, 0.85, 1])
+                    fig.tight_layout()  # Use default tight_layout for optimal plot area
 
                     fig.savefig(
                         prepend_root_if_relative(
