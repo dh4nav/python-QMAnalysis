@@ -207,7 +207,7 @@ class GaussianOutFile:
         self.frame_data.dataframe.loc[(
             self.file_name, self.file_path, self.timestep_name)] = row
         expected_cols = ["raw_data", "energy", "zero-point energy",
-                         "file_comment", "charge", "multiplicity", "HF", "ZPE", "Thermal", "RMSD", "RMSF", "dipole", "nimag"]
+                         "file_comment", "charge", "multiplicity", "HF", "ZPE", "Thermal", "RMSD", "RMSF", "dipole", "dipole_x", "dipole_y", "dipole_z", "nimag"]
         self.frame_data.dataframe = self.frame_data.dataframe.reindex(
             columns=expected_cols)
 
