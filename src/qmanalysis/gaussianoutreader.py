@@ -93,7 +93,7 @@ class GaussianOutFile:
                 if in_archive:
                     last_archive_lines.append(line)
                     # End archive block at empty line or line starting with '@'
-                    if line.strip() == '' or line.lstrip().startswith('@'):
+                    if line.strip() == '':  # or line.lstrip().startswith('@'):
                         in_archive = False
         # Now process only the last orientation and archive block
         atoms = []
