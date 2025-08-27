@@ -15,6 +15,7 @@ import numpy as np
 import scipy
 
 import qmanalysis.customcalculationrunner as ccr
+from qmanalysis.gaussianoutreader import GaussianOutFile
 
 
 def prepend_root_if_relative(file_path, root_path=None):
@@ -151,9 +152,17 @@ def main():
                 xr.XYZFile(atom_data, frame_data, file_path=prepend_root_if_relative(
                     file_path=file["path"], root_path=args.root_path), file_name=file["name"], timestep_name=file.get("timestep", None))
         elif ftype == "gaussian_out":
-            from qmanalysis.gaussianoutreader import GaussianOutFile
-            GaussianOutFile(atom_data, frame_data, file_path=prepend_root_if_relative(
-                file_path=file["path"], root_path=args.root_path), file_name=file.get("name", None), timestep_name=file.get("timestep", None))
+            if "glob" in file and file["glob"]:
+                for gfile in list(prepend_root_if_relative_and_glob(file_path=file["path"], root_path=args.root_path)):
+                    GaussianOutFile(atom_data, frame_data, file_path=gfile,
+                                    file_name=file.get(
+                                        "name", None) + Path(gfile).stem,
+                                    timestep_name=file.get("timestep", None))
+            else:
+                GaussianOutFile(atom_data, frame_data, file_path=prepend_root_if_relative(
+                    file_path=file["path"], root_path=args.root_path),
+                    file_name=file.get("name", None),
+                    timestep_name=file.get("timestep", None))
         elif ftype == "global_constants_csv":
             global_constants = GlobalConstantsFile(
                 file_path=prepend_root_if_relative(file["path"], root_path=args.root_path))
