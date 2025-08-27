@@ -75,19 +75,22 @@ class GaussianOutFile:
         with self.path.open('r') as f:
             lines = [line.rstrip('\n') for line in f]
         archive_start = None
+        archive_end = None
         for i, line in enumerate(lines):
-            if re.match(r'^\s*1\\1\\FAU-CCC', line):
+            if re.match(r'^\s{1}1\\1\\', line):
                 archive_start = i
+            if archive_start is not None and '\\@' in line:
+                archive_end = i
                 break
-        if archive_start is not None:
-            # Strip leading/trailing spaces from each line before joining
-            archive_lines = [line.strip() for line in lines[archive_start:]]
-            archive_block = '\\'.join(archive_lines)
-            archive_block = archive_block.replace('\n', '').replace('\r', '')
-
-        # DEBUG: Print all split fields for transparency
-        split_block = [s.strip()
-                       for s in archive_block.split('\\') if s.strip()]
+        if archive_start is not None and archive_end is not None:
+            # Remove line breaks and one space at start/end of each line
+            archive_lines = [line[1:-1] if line.startswith(' ') and line.endswith(
+                ' ') else line.lstrip(' ').rstrip(' ') for line in lines[archive_start:archive_end+1]]
+            archive_block = ''.join(archive_lines)
+            # Split at each '\', keeping empty fields
+            split_block = archive_block.split('\\')
+        else:
+            split_block = []
         print("Archive split fields:")
         for idx, field in enumerate(split_block):
             print(f"[{idx}]: {field}")
