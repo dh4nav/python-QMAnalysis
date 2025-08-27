@@ -79,7 +79,7 @@ class GaussianOutFile:
         for i, line in enumerate(lines):
             if re.match(r'^\s{1}1\\1\\', line):
                 archive_start = i
-            if archive_start is not None and '\\@' in line:
+            if archive_start is not None and '\\\@' in line:
                 archive_end = i
                 break
         if archive_start is not None and archive_end is not None:
