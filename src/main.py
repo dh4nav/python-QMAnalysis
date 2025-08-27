@@ -183,7 +183,7 @@ def main():
             per_file_constants = pd.read_csv(prepend_root_if_relative(
                 file["path"], root_path=args.root_path))
             frame_data = pd.merge(
-                frame_data.df, per_file_constants, how='outer', on='file_name')
+                frame_data.dataframe, per_file_constants, how='outer', on='file_name')
     # print(atom_data.dataframe)
     # print(timestep_data.dataframe)
 
