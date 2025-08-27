@@ -107,9 +107,9 @@ class GaussianOutFile:
         for line in last_archive_lines:
             archive_fields.extend(line.split('\\'))
         # Extract comment and charge/multiplicity from split_block
-        file_comment = split_block[15] if len(split_block) > 15 else None
-        charge_multiplicity = split_block[18] if len(
-            split_block) > 18 else None
+        file_comment = split_block[13] if len(split_block) > 13 else None
+        charge_multiplicity = split_block[15] if len(
+            split_block) > 15 else None
         if charge_multiplicity:
             parts = charge_multiplicity.split(',')
             if len(parts) == 2:
