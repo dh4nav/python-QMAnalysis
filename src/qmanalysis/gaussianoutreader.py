@@ -194,7 +194,7 @@ class GaussianOutFile:
         debug_print('RMSF', rmsf)
         dipole = extract_archive_value('Dipole', archive_block, is_tuple=True)
         debug_print('Dipole', dipole)
-        nimag = extract_archive_value('NIMag', archive_block)
+        nimag = extract_archive_value('NImag', archive_block)
         # Store NImag as integer if possible
         try:
             nimag = int(
