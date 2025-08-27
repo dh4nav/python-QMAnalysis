@@ -14,100 +14,62 @@ class GaussianOutFile:
         self._read_gaussian_out()
 
     def _read_gaussian_out(self):
-        orientation_start = None
-        orientation_type = None
-        atom_lines = []
-        archive_lines = []
+        # --- Optimized single-pass reading ---
+        orientation_regex = re.compile(
+            r'(Standard|Input|Z-Matrix) orientation:')
+        dash_regex = re.compile(r'-{5,}')
+        archive_start_regex = re.compile(r'^\s{1}1\\1\\')
         raw_lines = []
-        last_dash_idx = None
-        with self.path.open('r') as f:
-            for idx, line in enumerate(f):
-                line = line.rstrip('\n')
-                raw_lines.append(line)
-                if re.search(r'(Standard|Input|Z-Matrix) orientation:', line):
-                    orientation_start = idx
-                    orientation_type = line.strip()
-                    print("Orientation found: " + orientation_type)
-                if re.match(r'-{5,}', line):
-                    last_dash_idx = idx
-        # Atom block: only read if orientation_start found
-        if orientation_start is None:
-            raise ValueError(f"{self.file_path}: No orientation block found.")
-        # Read atom table lines directly from file
-        with self.path.open('r') as f:
-            for idx, line in enumerate(f):
-                if idx < orientation_start + 5:
-                    continue
-                if last_dash_idx is not None and idx >= last_dash_idx:
-                    break
-                if idx >= orientation_start + 5:
-                    if line.startswith('-----'):
-                        break
-                    atom_lines.append(line.rstrip('\n'))
-        atoms = []
-        for line in atom_lines:
-            tokens = line.split()
-            if len(tokens) < 6:
-                continue
-            try:
-                atomic_num = int(tokens[1])
-            except (ValueError, IndexError):
-                continue
-            try:
-                x, y, z = float(tokens[3]), float(tokens[4]), float(tokens[5])
-            except (ValueError, IndexError):
-                continue
-            element = self._atomic_number_to_symbol(atomic_num)
-            atom_index = len(atoms)
-            alias = str(atom_index)
-            charge = None
-            atoms.append((element, x, y, z, alias, charge))
-            self.atom_data.dataframe.loc[(self.file_name, self.file_path, self.timestep_name, atom_index)] = {
-                "element": element,
-                "x": x,
-                "y": y,
-                "z": z,
-                "alias": alias,
-                "charge": charge
-            }
-        # Read the file and store only the last orientation and archive block
         last_orientation_lines = []
         last_archive_lines = []
         in_orientation = False
         in_archive = False
+        orientation_dash_found = False
         with self.path.open('r') as f:
             for line in f:
                 line = line.rstrip('\n')
-                # Detect orientation block start
-                if re.search(r'(Standard|Input|Z-Matrix) orientation:', line):
+                raw_lines.append(line)
+                # Orientation block detection
+                if orientation_regex.search(line):
                     in_orientation = True
-                    last_orientation_lines = []
+                    last_orientation_lines = [line]
+                    orientation_dash_found = False
+                    continue
                 if in_orientation:
                     last_orientation_lines.append(line)
-                    if re.match(r'-{5,}', line):
+                    if dash_regex.match(line):
+                        orientation_dash_found = True
+                    elif orientation_dash_found and not line.strip():
                         in_orientation = False
-                # Detect archive block start
-                if re.match(r'^\s{1}1\\1\\', line):
+                # Archive block detection
+                if archive_start_regex.match(line):
                     in_archive = True
-                    last_archive_lines = []
+                    last_archive_lines = [line]
+                    continue
                 if in_archive:
                     last_archive_lines.append(line)
-                    # End archive block at empty line or line starting with '@'
-                    if line.strip() == '':  # or line.lstrip().startswith('@'):
+                    if line.strip() == '':
                         in_archive = False
-        # Now process only the last orientation and archive block
+        # --- Atom block processing ---
         atoms = []
-        for line in last_orientation_lines[5:]:
+        # Find atom table start (5 lines after orientation header)
+        atom_table_start = None
+        for i, line in enumerate(last_orientation_lines):
+            if orientation_regex.search(line):
+                atom_table_start = i + 5
+                break
+        if atom_table_start is None:
+            raise ValueError(f"{self.file_path}: No orientation block found.")
+        for line in last_orientation_lines[atom_table_start:]:
+            if dash_regex.match(line) or not line.strip():
+                break
             tokens = line.split()
             if len(tokens) < 6:
                 continue
             try:
                 atomic_num = int(tokens[1])
-            except (ValueError, IndexError):
-                continue
-            try:
                 x, y, z = float(tokens[3]), float(tokens[4]), float(tokens[5])
-            except (ValueError, IndexError):
+            except Exception:
                 continue
             element = self._atomic_number_to_symbol(atomic_num)
             atom_index = len(atoms)
@@ -122,64 +84,39 @@ class GaussianOutFile:
                 "alias": alias,
                 "charge": charge
             }
-        # Archive block: read only the lines after last dashed line
-        # Archive block starts with line beginning '1\'
+        # --- Archive block processing ---
         archive_block = ''
         archive_start = None
         archive_end = None
         for i, line in enumerate(last_archive_lines):
-            if re.match(r'^\s{1}1\\1\\', line):
+            if archive_start_regex.match(line):
                 archive_start = i
-            # if archive_start is not None:
-            #     print(f"End check line {i}: {repr(line)}")  # DEBUG
             if archive_start is not None and line.strip() == '':
                 archive_end = i
                 break
         if archive_start is not None and archive_end is not None:
-            # Remove line breaks and one space at start/end of each line
-            archive_lines = [line[1:-1] if line.startswith(' ') and line.endswith(
-                ' ') else line.lstrip(' ').rstrip(' ') for line in last_archive_lines[archive_start:archive_end+1]]
+            archive_lines = [line.lstrip(' ').rstrip(
+                ' ') for line in last_archive_lines[archive_start:archive_end+1]]
             archive_block = ''.join(archive_lines)
-            # Split at each '\', keeping empty fields
             split_block = archive_block.split('\\')
         else:
             split_block = []
-        # print("Archive split fields:")
-        # for idx, field in enumerate(split_block):
-        #     print(f"[{idx}]: {field}")
-
-        element_symbols = {'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh',
-                           'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U'}
-
-        def is_atom_line(field):
-            tokens = field.split(',')
-            if len(tokens) < 4:
-                return False
-            if tokens[0] not in element_symbols:
-                return False
-            try:
-                float(tokens[1])
-                float(tokens[2])
-                float(tokens[3])
-                return True
-            except Exception:
-                return False
-        atom_block_start = None
-        for i, field in enumerate(split_block):
-            if is_atom_line(field):
-                atom_block_start = i
-                break
 
         # Process archive block fields
         archive_fields = []
         for line in last_archive_lines:
             archive_fields.extend(line.split('\\'))
         # Extract comment and charge/multiplicity
-        file_comment = archive_fields[15] if len(archive_fields) > 15 else None
-        if len(archive_fields) > 18:
-            charge_multiplicity = archive_fields[18]
-            charge, multiplicity = charge_multiplicity.split(
-                ',') if charge_multiplicity else (pd.NA, pd.NA)
+        file_comment = archive_fields[12] if len(archive_fields) > 12 else None
+        charge_multiplicity = archive_fields[14] if len(
+            archive_fields) > 14 else None
+        if charge_multiplicity:
+            try:
+                charge, multiplicity = charge_multiplicity.split(',')
+            except Exception:
+                charge, multiplicity = (pd.NA, pd.NA)
+        else:
+            charge, multiplicity = (pd.NA, pd.NA)
 
         def is_plausible(val, key=None):
             # Check for plausible float values
