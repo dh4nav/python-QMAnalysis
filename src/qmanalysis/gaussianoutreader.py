@@ -79,7 +79,8 @@ class GaussianOutFile:
         for i, line in enumerate(lines):
             if re.match(r'^\s{1}1\\1\\', line):
                 archive_start = i
-            print(f"End check line {i}: {repr(line)}")  # DEBUG
+            if archive_start is not None:
+                print(f"End check line {i}: {repr(line)}")  # DEBUG
             if archive_start is not None and line.strip() == '':
                 archive_end = i
                 break
