@@ -192,15 +192,22 @@ class GaussianOutFile:
         dipole = extract_archive_value('Dipole', archive_block, is_tuple=True)
         debug_print('Dipole', dipole)
         nimag = extract_archive_value('NIMag', archive_block)
+        # Store NImag as integer if possible
+        try:
+            nimag = int(
+                nimag) if nimag is not pd.NA and nimag is not None else pd.NA
+        except Exception:
+            nimag = pd.NA
         debug_print('NIMag', nimag)
         # Save to frame_data.dataframe
         row = {
             "raw_data": '\n'.join(raw_lines),
-            "energy": hf,
+            "energy": pd.NA,
             "zero-point energy": zeropoint,
             "file_comment": file_comment,
             "charge": charge,
             "multiplicity": multiplicity,
+            "HF": hf,
             "ZPE": zpe,
             "Thermal": thermal,
             "RMSD": rmsd,
@@ -211,7 +218,7 @@ class GaussianOutFile:
         self.frame_data.dataframe.loc[(
             self.file_name, self.file_path, self.timestep_name)] = row
         expected_cols = ["raw_data", "energy", "zero-point energy",
-                         "file_comment", "charge", "multiplicity", "ZPE", "Thermal", "RMSD", "RMSF", "dipole", "nimag"]
+                         "file_comment", "charge", "multiplicity", "HF", "ZPE", "Thermal", "RMSD", "RMSF", "dipole", "nimag"]
         self.frame_data.dataframe = self.frame_data.dataframe.reindex(
             columns=expected_cols)
 
