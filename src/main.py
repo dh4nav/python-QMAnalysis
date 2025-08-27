@@ -182,8 +182,9 @@ def main():
         elif ftype == "per_file_constants_csv":
             per_file_constants = pd.read_csv(prepend_root_if_relative(
                 file["path"], root_path=args.root_path))
-            frame_data.dataframe = pd.merge(
-                frame_data.dataframe, per_file_constants, how='outer', on='file_name')
+            # Join per_file_constants to frame_data.dataframe on file_name, preserving multiindex
+            frame_data.dataframe = frame_data.dataframe.join(
+                per_file_constants.set_index('file_name'), on='file_name', rsuffix='_perfile')
     # print(atom_data.dataframe)
     # print(timestep_data.dataframe)
 
