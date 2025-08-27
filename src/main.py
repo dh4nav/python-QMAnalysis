@@ -145,19 +145,32 @@ def main():
         # print("Reading file: "+file['name'])
         if ftype == "xyz":
             if "glob" in file and file["glob"]:
-                for gfile in list(prepend_root_if_relative_and_glob(file_path=file["path"], root_path=args.root_path)):
-                    xr.XYZFile(atom_data, frame_data, file_path=gfile,
-                               file_name=file["name"]+Path(gfile).stem, timestep_name=file.get("timestep", None))
+                globbed_files = list(prepend_root_if_relative_and_glob(
+                    file_path=file["path"], root_path=args.root_path))
+                if len(globbed_files) == 1:
+                    xr.XYZFile(atom_data, frame_data, file_path=globbed_files[0],
+                               file_name=file["name"], timestep_name=file.get("timestep", None))
+                else:
+                    for gfile in globbed_files:
+                        xr.XYZFile(atom_data, frame_data, file_path=gfile,
+                                   file_name=file["name"]+Path(gfile).stem, timestep_name=file.get("timestep", None))
             else:
                 xr.XYZFile(atom_data, frame_data, file_path=prepend_root_if_relative(
                     file_path=file["path"], root_path=args.root_path), file_name=file["name"], timestep_name=file.get("timestep", None))
         elif ftype == "gaussian_out":
             if "glob" in file and file["glob"]:
-                for gfile in list(prepend_root_if_relative_and_glob(file_path=file["path"], root_path=args.root_path)):
-                    GaussianOutFile(atom_data, frame_data, file_path=gfile,
-                                    file_name=file.get(
-                                        "name", None) + Path(gfile).stem,
+                globbed_files = list(prepend_root_if_relative_and_glob(
+                    file_path=file["path"], root_path=args.root_path))
+                if len(globbed_files) == 1:
+                    GaussianOutFile(atom_data, frame_data, file_path=globbed_files[0],
+                                    file_name=file.get("name", None),
                                     timestep_name=file.get("timestep", None))
+                else:
+                    for gfile in globbed_files:
+                        GaussianOutFile(atom_data, frame_data, file_path=gfile,
+                                        file_name=file.get(
+                                            "name", None) + Path(gfile).stem,
+                                        timestep_name=file.get("timestep", None))
             else:
                 GaussianOutFile(atom_data, frame_data, file_path=prepend_root_if_relative(
                     file_path=file["path"], root_path=args.root_path),
