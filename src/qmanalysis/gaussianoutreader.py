@@ -80,7 +80,7 @@ class GaussianOutFile:
             if re.match(r'^\s{1}1\\1\\', line):
                 archive_start = i
             print(f"End check line {i}: {repr(line)}")  # DEBUG
-            if archive_start is not None and re.search(r'\\@$', line):
+            if archive_start is not None and re.match(r'^\s*@\s*$', line):
                 archive_end = i
                 break
         if archive_start is not None and archive_end is not None:
