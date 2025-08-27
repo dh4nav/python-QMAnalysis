@@ -168,35 +168,19 @@ class GaussianOutFile:
             if is_atom_line(field):
                 atom_block_start = i
                 break
-        # Charge/multiplicity is the field before the first atom line
-        # Comment is the field before charge/multiplicity
-        file_comment = None
-        charge = pd.NA
-        multiplicity = pd.NA
-        if atom_block_start is not None and atom_block_start > 1:
-            charge_mult_field = split_block[atom_block_start-1]
-            comment_field = split_block[atom_block_start-2]
-            parts = [p.strip() for p in charge_mult_field.split(',')]
-            if len(parts) == 2:
-                try:
-                    charge = int(parts[0]) if parts[0].isdigit(
-                    ) else float(parts[0])
-                except Exception:
-                    charge = pd.NA
-                try:
-                    multiplicity = int(parts[1])
-                except Exception:
-                    multiplicity = pd.NA
-            file_comment = comment_field
 
         # Process archive block fields
         archive_fields = []
         for line in last_archive_lines:
             archive_fields.extend(line.split('\\'))
         # Extract comment and charge/multiplicity
-        comment = archive_fields[13] if len(archive_fields) > 13 else None
+        file_comment = archive_fields[13] if len(archive_fields) > 13 else None
         charge_multiplicity = archive_fields[15] if len(
             archive_fields) > 15 else None
+        if len(archive_fields) > 15:
+            charge_multiplicity = archive_fields[15]
+            charge, multiplicity = charge_multiplicity.split(
+                ',') if charge_multiplicity else (pd.NA, pd.NA)
 
         def is_plausible(val, key=None):
             # Check for plausible float values
