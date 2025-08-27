@@ -204,8 +204,8 @@ class GaussianOutFile:
             "dipole_z": dipole_z,
             "nimag": nimag
         }
-        # print(
-        #    f"Saving row for {self.file_name}, {self.file_path}, {self.timestep_name}: {row}")
+        print(
+            f"Saving row for {self.file_name}, {self.file_path}, {self.timestep_name}: {row}")
         self.frame_data.dataframe.loc[(
             self.file_name, self.file_path, self.timestep_name)] = row
         expected_cols = ["raw_data", "energy", "zero-point energy",
