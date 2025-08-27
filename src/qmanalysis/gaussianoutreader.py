@@ -174,11 +174,9 @@ class GaussianOutFile:
         for line in last_archive_lines:
             archive_fields.extend(line.split('\\'))
         # Extract comment and charge/multiplicity
-        file_comment = archive_fields[13] if len(archive_fields) > 13 else None
-        charge_multiplicity = archive_fields[15] if len(
-            archive_fields) > 15 else None
-        if len(archive_fields) > 15:
-            charge_multiplicity = archive_fields[15]
+        file_comment = archive_fields[15] if len(archive_fields) > 15 else None
+        if len(archive_fields) > 17:
+            charge_multiplicity = archive_fields[17]
             print("CM: "+charge_multiplicity)
             charge, multiplicity = charge_multiplicity.split(
                 ',') if charge_multiplicity else (pd.NA, pd.NA)
