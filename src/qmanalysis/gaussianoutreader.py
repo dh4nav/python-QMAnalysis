@@ -106,14 +106,15 @@ class GaussianOutFile:
         archive_fields = []
         for line in last_archive_lines:
             archive_fields.extend(line.split('\\'))
-        # Extract comment and charge/multiplicity
-        file_comment = archive_fields[12] if len(archive_fields) > 12 else None
-        charge_multiplicity = archive_fields[14] if len(
-            archive_fields) > 14 else None
+        # Extract comment and charge/multiplicity from split_block
+        file_comment = split_block[15] if len(split_block) > 15 else None
+        charge_multiplicity = split_block[18] if len(
+            split_block) > 18 else None
         if charge_multiplicity:
-            try:
-                charge, multiplicity = charge_multiplicity.split(',')
-            except Exception:
+            parts = charge_multiplicity.split(',')
+            if len(parts) == 2:
+                charge, multiplicity = parts[0].strip(), parts[1].strip()
+            else:
                 charge, multiplicity = (pd.NA, pd.NA)
         else:
             charge, multiplicity = (pd.NA, pd.NA)
