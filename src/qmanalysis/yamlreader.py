@@ -115,6 +115,7 @@ class YAMLFile:
                     Optional("graph"): Seq(
                         Map({
                             "type": Str(),
+                            Optional("timestep_name"): Str(),
                             "x": any_identifier,  # Accepts str, int, or list
                             "y": any_identifier,  # Accepts str, int, or list
                             Optional("x_label"): Str() | Seq(Str()),

@@ -480,6 +480,11 @@ def main():
                     parallel_by = graph.get('parallel_by', None)
                     df = frame_data.dataframe.reset_index()
 
+                    # Filter by timestep_name if present in graph config
+                    timestep_name = graph.get("timestep_name", None)
+                    if timestep_name is not None:
+                        df = df[df["timestep_name"] == timestep_name]
+
                     x_cols = resolve_columns(x_spec, df)
                     y_cols = resolve_columns(y_spec, df)
 
