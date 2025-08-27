@@ -85,45 +85,42 @@ class GaussianOutFile:
             archive_block = '\\'.join(archive_lines)
             archive_block = archive_block.replace('\n', '').replace('\r', '')
 
-        def is_plausible(val, key=None):
-            # Check for plausible float values
-            if val is pd.NA or val is None:
+        # DEBUG: Print all split fields for transparency
+        split_block = [s.strip()
+                       for s in archive_block.split('\\') if s.strip()]
+        print("Archive split fields:")
+        for idx, field in enumerate(split_block):
+            print(f"[{idx}]: {field}")
+
+        element_symbols = {'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh',
+                           'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U'}
+
+        def is_atom_line(field):
+            tokens = field.split(',')
+            if len(tokens) < 4:
+                return False
+            if tokens[0] not in element_symbols:
                 return False
             try:
-                fval = float(val)
-                if not (-1e10 < fval < 1e10):
-                    return False
-                if str(val).lower() in ['nan', 'inf', '-inf', '']:
-                    return False
-                if re.match(r'.*e-$', str(val)):
-                    return False
+                float(tokens[1])
+                float(tokens[2])
+                float(tokens[3])
                 return True
             except Exception:
                 return False
-
-        # Robust extraction of comment and charge/multiplicity
+        atom_block_start = None
+        for i, field in enumerate(split_block):
+            if is_atom_line(field):
+                atom_block_start = i
+                break
+        # Charge/multiplicity is the field before the first atom line
+        # Comment is the field before charge/multiplicity
         file_comment = None
         charge = pd.NA
         multiplicity = pd.NA
-        split_block = [s.strip()
-                       for s in archive_block.split('\\') if s.strip()]
-        # List of element symbols for detection
-        element_symbols = {'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh',
-                           'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U'}
-        atom_block_start = None
-        for i, field in enumerate(split_block):
-            # Detect atom block start
-            if ',' in field:
-                first_token = field.split(',')[0]
-                if first_token in element_symbols:
-                    atom_block_start = i
-                    break
-        # Comment is the field before atom block
-        if atom_block_start and atom_block_start > 0:
-            file_comment = split_block[atom_block_start-1]
-        # Charge/multiplicity is the field before the comment
-        if atom_block_start and atom_block_start > 1:
-            charge_mult_field = split_block[atom_block_start-2]
+        if atom_block_start is not None and atom_block_start > 1:
+            charge_mult_field = split_block[atom_block_start-1]
+            comment_field = split_block[atom_block_start-2]
             parts = [p.strip() for p in charge_mult_field.split(',')]
             if len(parts) == 2:
                 try:
@@ -135,6 +132,7 @@ class GaussianOutFile:
                     multiplicity = int(parts[1])
                 except Exception:
                     multiplicity = pd.NA
+            file_comment = comment_field
 
         def extract_archive_value(key, block, is_tuple=False):
             m = re.search(rf'{key}=([^\\]*)', block, re.IGNORECASE)
