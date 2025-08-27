@@ -182,7 +182,7 @@ def main():
         elif ftype == "per_file_constants_csv":
             per_file_constants = pd.read_csv(prepend_root_if_relative(
                 file["path"], root_path=args.root_path))
-            frame_data = pd.merge(
+            frame_data.dataframe = pd.merge(
                 frame_data.dataframe, per_file_constants, how='outer', on='file_name')
     # print(atom_data.dataframe)
     # print(timestep_data.dataframe)
