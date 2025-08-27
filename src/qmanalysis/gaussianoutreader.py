@@ -175,6 +175,7 @@ class GaussianOutFile:
         rmsf = extract_archive_value('RMSF', archive_block)
         debug_print('RMSF', rmsf)
         dipole = extract_archive_value('Dipole', archive_block, is_tuple=True)
+        dipole_x, dipole_y, dipole_z = dipole
         debug_print('Dipole', dipole)
         nimag = extract_archive_value('NImag', archive_block)
         # Store NImag as integer if possible
@@ -198,6 +199,9 @@ class GaussianOutFile:
             "RMSD": rmsd,
             "RMSF": rmsf,
             "dipole": dipole,
+            "dipole_x": dipole_x,
+            "dipole_y": dipole_y,
+            "dipole_z": dipole_z,
             "nimag": nimag
         }
         self.frame_data.dataframe.loc[(
