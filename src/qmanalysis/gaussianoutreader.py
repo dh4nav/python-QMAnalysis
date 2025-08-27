@@ -134,6 +134,22 @@ class GaussianOutFile:
                     multiplicity = pd.NA
             file_comment = comment_field
 
+        def is_plausible(val, key=None):
+            # Check for plausible float values
+            if val is pd.NA or val is None:
+                return False
+            try:
+                fval = float(val)
+                if not (-1e10 < fval < 1e10):
+                    return False
+                if str(val).lower() in ['nan', 'inf', '-inf', '']:
+                    return False
+                if re.match(r'.*e-$', str(val)):
+                    return False
+                return True
+            except Exception:
+                return False
+
         def extract_archive_value(key, block, is_tuple=False):
             m = re.search(rf'{key}=([^\\]*)', block, re.IGNORECASE)
             if not m:
