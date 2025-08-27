@@ -69,14 +69,64 @@ class GaussianOutFile:
                 "alias": alias,
                 "charge": charge
             }
+        # Read the file and store only the last orientation and archive block
+        last_orientation_lines = []
+        last_archive_lines = []
+        in_orientation = False
+        in_archive = False
+        with self.path.open('r') as f:
+            for line in f:
+                line = line.rstrip('\n')
+                # Detect orientation block start
+                if re.search(r'(Standard|Input|Z-Matrix) orientation:', line):
+                    in_orientation = True
+                    last_orientation_lines = []
+                if in_orientation:
+                    last_orientation_lines.append(line)
+                    if re.match(r'-{5,}', line):
+                        in_orientation = False
+                # Detect archive block start
+                if re.match(r'^\s{1}1\\1\\', line):
+                    in_archive = True
+                    last_archive_lines = []
+                if in_archive:
+                    last_archive_lines.append(line)
+                    # End archive block at empty line or line starting with '@'
+                    if line.strip() == '' or line.lstrip().startswith('@'):
+                        in_archive = False
+        # Now process only the last orientation and archive block
+        atoms = []
+        for line in last_orientation_lines[5:]:
+            tokens = line.split()
+            if len(tokens) < 6:
+                continue
+            try:
+                atomic_num = int(tokens[1])
+            except (ValueError, IndexError):
+                continue
+            try:
+                x, y, z = float(tokens[3]), float(tokens[4]), float(tokens[5])
+            except (ValueError, IndexError):
+                continue
+            element = self._atomic_number_to_symbol(atomic_num)
+            atom_index = len(atoms)
+            alias = str(atom_index)
+            charge = None
+            atoms.append((element, x, y, z, alias, charge))
+            self.atom_data.dataframe.loc[(self.file_name, self.file_path, self.timestep_name, atom_index)] = {
+                "element": element,
+                "x": x,
+                "y": y,
+                "z": z,
+                "alias": alias,
+                "charge": charge
+            }
         # Archive block: read only the lines after last dashed line
         # Archive block starts with line beginning '1\'
         archive_block = ''
-        with self.path.open('r') as f:
-            lines = [line.rstrip('\n') for line in f]
         archive_start = None
         archive_end = None
-        for i, line in enumerate(lines):
+        for i, line in enumerate(last_archive_lines):
             if re.match(r'^\s{1}1\\1\\', line):
                 archive_start = i
             if archive_start is not None:
@@ -87,7 +137,7 @@ class GaussianOutFile:
         if archive_start is not None and archive_end is not None:
             # Remove line breaks and one space at start/end of each line
             archive_lines = [line[1:-1] if line.startswith(' ') and line.endswith(
-                ' ') else line.lstrip(' ').rstrip(' ') for line in lines[archive_start:archive_end+1]]
+                ' ') else line.lstrip(' ').rstrip(' ') for line in last_archive_lines[archive_start:archive_end+1]]
             archive_block = ''.join(archive_lines)
             # Split at each '\', keeping empty fields
             split_block = archive_block.split('\\')
