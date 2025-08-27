@@ -194,9 +194,9 @@ class GaussianOutFile:
         for line in last_archive_lines:
             archive_fields.extend(line.split('\\'))
         # Extract comment and charge/multiplicity
-        comment = archive_fields[12] if len(archive_fields) > 12 else None
-        charge_multiplicity = archive_fields[14] if len(
-            archive_fields) > 14 else None
+        comment = archive_fields[13] if len(archive_fields) > 13 else None
+        charge_multiplicity = archive_fields[15] if len(
+            archive_fields) > 15 else None
 
         def is_plausible(val, key=None):
             # Check for plausible float values
