@@ -189,6 +189,15 @@ class GaussianOutFile:
                     multiplicity = pd.NA
             file_comment = comment_field
 
+        # Process archive block fields
+        archive_fields = []
+        for line in last_archive_lines:
+            archive_fields.extend(line.split('\\'))
+        # Extract comment and charge/multiplicity
+        comment = archive_fields[12] if len(archive_fields) > 12 else None
+        charge_multiplicity = archive_fields[14] if len(
+            archive_fields) > 14 else None
+
         def is_plausible(val, key=None):
             # Check for plausible float values
             if val is pd.NA or val is None:
