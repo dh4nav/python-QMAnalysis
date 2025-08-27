@@ -179,6 +179,7 @@ class GaussianOutFile:
             archive_fields) > 15 else None
         if len(archive_fields) > 15:
             charge_multiplicity = archive_fields[15]
+            print("CM: "+charge_multiplicity)
             charge, multiplicity = charge_multiplicity.split(
                 ',') if charge_multiplicity else (pd.NA, pd.NA)
 
