@@ -155,9 +155,11 @@ def main():
             GaussianOutFile(atom_data, frame_data, file_path=prepend_root_if_relative(
                 file_path=file["path"], root_path=args.root_path), file_name=file.get("name", None), timestep_name=file.get("timestep", None))
         elif ftype == "global_constants_csv":
-            global_constants = GlobalConstantsFile(file_path=file["path"])
+            global_constants = GlobalConstantsFile(
+                file_path=prepend_root_if_relative(file["path"]), root_path=args.root_path)
         elif ftype == "per_file_constants_csv":
-            per_file_constants = pd.read_csv(file_path=file["path"])
+            per_file_constants = pd.read_csv(file_path=prepend_root_if_relative(
+                file["path"]), root_path=args.root_path)
             frame_data = pd.merge(
                 frame_data.df, per_file_constants, how='outer', on='file_name')
     # print(atom_data.dataframe)
