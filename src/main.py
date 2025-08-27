@@ -141,6 +141,7 @@ def main():
     print(yamldata)
     for file in yamldata["files"]:
         ftype = file["type"].lower()
+        print("Reading file: "+file)
         if ftype == "xyz":
             if "glob" in file and file["glob"]:
                 for gfile in list(prepend_root_if_relative_and_glob(file_path=file["path"], root_path=args.root_path)):
