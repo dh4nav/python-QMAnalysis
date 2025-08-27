@@ -180,7 +180,7 @@ def main():
             global_constants = GlobalConstantsFile(
                 file_path=prepend_root_if_relative(file["path"], root_path=args.root_path))
         elif ftype == "per_file_constants_csv":
-            per_file_constants = pd.read_csv(file_path=prepend_root_if_relative(
+            per_file_constants = pd.read_csv(prepend_root_if_relative(
                 file["path"], root_path=args.root_path))
             frame_data = pd.merge(
                 frame_data.df, per_file_constants, how='outer', on='file_name')
