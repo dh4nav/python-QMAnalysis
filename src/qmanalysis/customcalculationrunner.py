@@ -39,7 +39,7 @@ class CustomCalculationRunner:
         except ImportError:
             pass
 
-        self.safe_globals["pivot"] = pd.pivot_table
+        self.safe_globals["pivot"] = pivot
 
         if extra_globals:
             self.safe_globals.update(extra_globals)
