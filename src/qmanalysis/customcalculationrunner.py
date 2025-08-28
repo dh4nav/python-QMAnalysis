@@ -31,6 +31,7 @@ class CustomCalculationRunner:
 
         # Define the pivot function
         def pivot(file_name, row):
+            print("pivot called")
             return self.frame_data.dataframe.xs(file_name, level="file_name").loc[row]
 
         # Optionally add scipy if needed
