@@ -27,6 +27,7 @@ class CustomCalculationRunner:
             "float": float,
             "int": int,
             "str": str,
+            "frame_data": self.frame_data
         }
         # Optionally add scipy if needed
         try:
