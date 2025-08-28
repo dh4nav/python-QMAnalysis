@@ -35,15 +35,24 @@ class CustomCalculationRunner:
         except ImportError:
             pass
 
-        self.safe_globals["pivot"] = self.pivot
+        def pivot(file_name, col_name):
+            # Find the row with the given file_name in the MultiIndex
+            # Assumes file_name is in the first level of the MultiIndex
+            try:
+                # Get all rows with the given file_name
+                df = self.frame_data.dataframe.xs(file_name, level="file_name")
+                # If multiple rows, you may need to further filter by other index levels
+                # For now, just take the first match
+                value = df.iloc[0][col_name]
+                return value
+            except Exception as e:
+                print(f"pivot error: {e}")
+                return None
+
+        self.safe_globals["pivot"] = pivot
 
         if extra_globals:
             self.safe_globals.update(extra_globals)
-
-        # Define the pivot function
-    def pivot(self, file_name, row):
-        print("pivot called:", file_name, row)
-        return self.frame_data.dataframe.xs(file_name, level="file_name").loc[row]
 
     def run(self, calculations):
         """
