@@ -26,14 +26,21 @@ class CustomCalculationRunner:
             "round": round,
             "float": float,
             "int": int,
-            "str": str,
-            "frame_data": self.frame_data
+            "str": str
         }
+
+        # Define the pivot function
+        def pivot(file_name, row):
+            return self.frame_data.dataframe.xs(file_name, level="file_name").loc[row]
+
         # Optionally add scipy if needed
         try:
             self.safe_globals["scipy"] = scipy
         except ImportError:
             pass
+
+        self.safe_globals["pivot"] = pd.pivot_table
+
         if extra_globals:
             self.safe_globals.update(extra_globals)
 
