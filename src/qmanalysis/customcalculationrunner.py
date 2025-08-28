@@ -29,21 +29,21 @@ class CustomCalculationRunner:
             "str": str
         }
 
-        # Define the pivot function
-        def pivot(file_name, row):
-            print("pivot called:", file_name, row)
-            return self.frame_data.dataframe.xs(file_name, level="file_name").loc[row[0]]
-
         # Optionally add scipy if needed
         try:
             self.safe_globals["scipy"] = scipy
         except ImportError:
             pass
 
-        self.safe_globals["pivot"] = pivot
+        self.safe_globals["pivot"] = self.pivot
 
         if extra_globals:
             self.safe_globals.update(extra_globals)
+
+        # Define the pivot function
+    def pivot(self, file_name, row):
+        print("pivot called:", file_name, row)
+        return self.frame_data.dataframe.xs(file_name, level="file_name").loc[row]
 
     def run(self, calculations):
         """
