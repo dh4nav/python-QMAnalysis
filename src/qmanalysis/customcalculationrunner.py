@@ -77,10 +77,19 @@ class CustomCalculationRunner:
                     # Replace column names in expr with their values from the row, using bracket notation
                     expr_safe = expr
                     for col in self.frame_data.dataframe.columns:
-                        # Only replace if col is in expr as a variable (not inside quotes or brackets)
-                        # Use regex to match whole word
+                        # Only replace if col is in expr as a variable (not inside quotes)
+                        # This regex matches col name not inside single or double quotes
+                        def replacer(match):
+                            # Check if match is inside quotes
+                            before = expr_safe[:match.start()]
+                            num_single = before.count("'")
+                            num_double = before.count('"')
+                            # If odd number of quotes before, we're inside quotes
+                            if num_single % 2 == 1 or num_double % 2 == 1:
+                                return match.group(0)
+                            return f'row["{col}"]'
                         expr_safe = re.sub(
-                            rf'\b{re.escape(col)}\b', f'row["{col}"]', expr_safe)
+                            rf'\b{re.escape(col)}\b', replacer, expr_safe)
                     try:
                         return eval(expr_safe, self.safe_globals, {"row": row, **local_vars})
                     except Exception as e:
