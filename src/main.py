@@ -498,12 +498,10 @@ def main():
                     y_spec = graph['y']
                     x_label = graph.get('x_label', None)
                     y_label = graph.get('y_label', None)
-                    # Default to file_name
                     series_by = graph.get('series_by', "file_name")
                     parallel_by = graph.get('parallel_by', None)
                     df = frame_data.dataframe.reset_index()
 
-                    # Filter by timestep_name if present in graph config
                     timestep_name = graph.get("timestep_name", None)
                     if timestep_name is not None:
                         df = df[df["timestep_name"] == timestep_name]
@@ -519,26 +517,26 @@ def main():
                     fig, ax = plt.subplots(
                         figsize=graph.get("figsize", (8, 6)))
 
-                    # Assign a color to each file_name
+                    # Define marker symbols to cycle through
+                    marker_symbols = ['x', '+', 's', 'D', '^',
+                                      'v', '<', '>', 'p', '*', 'h', '|', '_']
                     unique_files = df["file_name"].unique()
-                    colors = plt.cm.get_cmap("tab10", len(unique_files))
-                    file_color_map = {fname: colors(
-                        i) for i, fname in enumerate(unique_files)}
+                    file_marker_map = {fname: marker_symbols[i % len(
+                        marker_symbols)] for i, fname in enumerate(unique_files)}
 
-                    # Plot each file_name as a separate series with its color
-                    handles = []
-                    labels = []
+                    # Plot each file_name as a separate series with its marker
                     for fname in unique_files:
                         subdf = df[df["file_name"] == fname]
+                        marker = file_marker_map[fname]
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
-                            sc = ax.scatter(
-                                subdf[xcol.name], subdf[ycol.name],
-                                color=file_color_map[fname],
-                                label=fname if fname not in labels else None
-                            )
-                            if fname not in labels:
-                                handles.append(sc)
-                                labels.append(fname)
+                            for idx, row in subdf.iterrows():
+                                x = row[xcol.name]
+                                y = row[ycol.name]
+                                ax.scatter(x, y, marker=marker, color='black')
+                                # Print label next to each point (use file_name or another label)
+                                label_text = str(row[series_by])
+                                ax.text(
+                                    x, y, f" {label_text}", fontsize=8, va='center', ha='left')
 
                     # Set axis labels
                     if x_label:
@@ -552,17 +550,11 @@ def main():
                     else:
                         ax.set_ylabel(', '.join([col.name for col in y_cols]))
 
-                    # Set plot title if provided
                     if "title" in graph and graph["title"]:
                         ax.set_title(graph["title"])
 
-                    # Make legend smaller and place it outside the plot area
-                    ax.legend(handles, labels, loc='upper left', bbox_to_anchor=(
-                        1.01, 1), fontsize='small', borderaxespad=0.)
+                    fig.tight_layout()
 
-                    fig.tight_layout()  # Use default tight_layout for optimal plot area
-
-                    # Handle multiple file formats
                     file_base = prepend_root_if_relative(
                         file_path=graph['file'], root_path=args.root_path)
                     file_formats = graph.get("file_format", "tiff")
