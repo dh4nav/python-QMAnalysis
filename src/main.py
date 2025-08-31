@@ -532,11 +532,23 @@ def main():
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
                                 y = row[ycol.name]
-                                ax.scatter(x, y, marker=marker, color='black')
-                                # Print label next to each point (use file_name or another label)
+                                # Use smaller marker size and thinner edge
+                                ax.scatter(x, y, marker=marker,
+                                           color='black', s=30, linewidths=0.5)
+                                # Print label next to each point with horizontal offset
                                 label_text = str(row[series_by])
-                                ax.text(
-                                    x, y, f" {label_text}", fontsize=8, va='center', ha='left')
+                                # Estimate half the width of a letter in data coordinates
+                                # Use ax.transData to convert offset in points to data units
+                                offset_points = 4  # about half a letter width in points
+                                # Transform (x, y) to display coordinates
+                                display = ax.transData.transform((x, y))
+                                # Offset x in display coordinates
+                                display_offset = (
+                                    display[0] + offset_points, display[1])
+                                # Transform back to data coordinates
+                                x_offset, y_offset = ax.transData.inverted().transform(display_offset)
+                                ax.text(x_offset, y, label_text,
+                                        fontsize=8, va='center', ha='left')
 
                     # Set axis labels
                     if x_label:
