@@ -528,27 +528,58 @@ def main():
                     for fname in unique_files:
                         subdf = df[df["file_name"] == fname]
                         marker = file_marker_map[fname]
+                        label_positions = []  # Store label positions to check for overlap
+                        label_texts = []
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
                                 y = row[ycol.name]
-                                # Use smaller marker size and thinner edge
                                 ax.scatter(x, y, marker=marker,
                                            color='black', s=30, linewidths=0.5)
-                                # Print label next to each point with horizontal offset
                                 label_text = str(row[series_by])
-                                # Estimate half the width of a letter in data coordinates
-                                # Use ax.transData to convert offset in points to data units
-                                offset_points = 4  # about half a letter width in points
-                                # Transform (x, y) to display coordinates
+                                # Increase offset for label
+                                offset_points = 20  # much larger horizontal offset
                                 display = ax.transData.transform((x, y))
-                                # Offset x in display coordinates
                                 display_offset = (
                                     display[0] + offset_points, display[1])
-                                # Transform back to data coordinates
                                 x_offset, y_offset = ax.transData.inverted().transform(display_offset)
-                                ax.text(x_offset, y, label_text,
-                                        fontsize=8, va='center', ha='left')
+
+                                # Check for overlap with previous labels
+                                overlap = False
+                                for (lx, ly) in label_positions:
+                                    # Use a small threshold for overlap in data units
+                                    if abs(x_offset - lx) < 0.05 and abs(y_offset - ly) < 0.05:
+                                        overlap = True
+                                        break
+
+                                if not overlap:
+                                    ax.text(x_offset, y, label_text,
+                                            fontsize=8, va='center', ha='left')
+                                    label_positions.append((x_offset, y))
+                                    label_texts.append(label_text)
+                                    # Draw a line from label to symbol if offset is large
+                                    ax.plot([x, x_offset], [y, y],
+                                            color='gray', linewidth=0.5)
+                                else:
+                                    # Try to move label vertically to avoid overlap
+                                    y_try = y
+                                    for dy in np.linspace(-0.2, 0.2, 10):
+                                        y_try = y + dy
+                                        overlap2 = False
+                                        for (lx, ly) in label_positions:
+                                            if abs(x_offset - lx) < 0.05 and abs(y_try - ly) < 0.05:
+                                                overlap2 = True
+                                                break
+                                        if not overlap2:
+                                            ax.text(x_offset, y_try, label_text,
+                                                    fontsize=8, va='center', ha='left')
+                                            label_positions.append(
+                                                (x_offset, y_try))
+                                            label_texts.append(label_text)
+                                            ax.plot([x, x_offset], [
+                                                    y, y_try], color='gray', linewidth=0.5)
+                                            break
+                                    # If still overlapping, skip label for this point
 
                     # Set axis labels
                     if x_label:
