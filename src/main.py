@@ -535,7 +535,7 @@ def main():
                         subdf = df[df["file_name"] == fname]
                         marker = file_marker_map[fname]
                         fillstyle = marker_fillstyles.get(marker, 'full')
-                        label_positions = []  # Store label positions to check for overlap
+                        label_bboxes = []  # Store bounding boxes of placed labels
                         group_threshold = 0.15  # threshold for grouping close markers
                         group_centers = []
                         label_offset_data = 0.027  # reduced offset for more compact label placement
@@ -561,52 +561,61 @@ def main():
                                         grouped = True
                                         break
                                 if not grouped:
-                                    # Check for label overlap and stack vertically if needed (regardless of label text)
-                                    stack_level = 0
-                                    for (lx, ly) in label_positions:
-                                        if abs(x_offset - lx) < 0.05 and abs(y_offset - ly) < 0.05:
-                                            stack_level += 1
-                                    y_offset_stacked = y_offset + stack_level * label_stack_offset
-                                    ax.text(
-                                        x_offset, y_offset_stacked, label_text, fontsize=8, va='center', ha='left')
-                                    label_positions.append(
-                                        (x_offset, y_offset_stacked))
-                                    group_centers.append((x, y, marker))
+                                    # Try to place label, stacking vertically if bounding boxes overlap
+                                    max_stack = 10
+                                    for stack_level in range(max_stack):
+                                        y_offset_stacked = y_offset + stack_level * label_stack_offset
+                                        text_obj = ax.text(
+                                            x_offset, y_offset_stacked, label_text, fontsize=8, va='center', ha='left')
+                                        plt.draw()  # Ensure renderer is updated
+                                        bbox = text_obj.get_window_extent(
+                                            renderer=fig.canvas.get_renderer())
+                                        overlap = False
+                                        for prev_bbox in label_bboxes:
+                                            if bbox.overlaps(prev_bbox):
+                                                overlap = True
+                                                break
+                                        if not overlap:
+                                            label_bboxes.append(bbox)
+                                            group_centers.append(
+                                                (x, y, marker))
+                                            break
+                                        else:
+                                            text_obj.remove()  # Remove overlapping label before trying next position
+                # Set axis labels
+                if x_label:
+                    ax.set_xlabel(', '.join(x_label) if isinstance(
+                        x_label, list) else str(x_label))
+                else:
+                    ax.set_xlabel(', '.join([col.name for col in x_cols]))
+                if y_label:
+                    ax.set_ylabel(', '.join(y_label) if isinstance(
+                        y_label, list) else str(y_label))
+                else:
+                    ax.set_ylabel(', '.join([col.name for col in y_cols]))
 
-                    # Set axis labels
-                    if x_label:
-                        ax.set_xlabel(', '.join(x_label) if isinstance(
-                            x_label, list) else str(x_label))
-                    else:
-                        ax.set_xlabel(', '.join([col.name for col in x_cols]))
-                    if y_label:
-                        ax.set_ylabel(', '.join(y_label) if isinstance(
-                            y_label, list) else str(y_label))
-                    else:
-                        ax.set_ylabel(', '.join([col.name for col in y_cols]))
+                if "title" in graph and graph["title"]:
+                    ax.set_title(graph["title"])
 
-                    if "title" in graph and graph["title"]:
-                        ax.set_title(graph["title"])
+                fig.tight_layout()
 
-                    fig.tight_layout()
-
-                    file_base = prepend_root_if_relative(
-                        file_path=graph['file'], root_path=args.root_path)
-                    file_formats = graph.get("file_format", "tiff")
-                    if isinstance(file_formats, list):
-                        formats_list = file_formats
-                    else:
-                        formats_list = [file_formats]
-                    for fmt in formats_list:
-                        ext = f".{fmt.lower()}"
-                        file_out = str(file_base)
-                        if not file_out.lower().endswith(ext):
-                            file_out += ext
-                        fig.savefig(
-                            file_out,
-                            dpi=graph.get("dpi", 300),
-                            format=fmt
-                        )
+                file_base = prepend_root_if_relative(
+                    file_path=graph['file'], root_path=args.root_path)
+                file_formats = graph.get("file_format", "tiff")
+                if isinstance(file_formats, list):
+                    formats_list = file_formats
+                else:
+                    formats_list = [file_formats]
+                for fmt in formats_list:
+                    ext = f".{fmt.lower()}"
+                    file_out = str(file_base)
+                    if not file_out.lower().endswith(ext):
+                        file_out += ext
+                    fig.savefig(
+                        file_out,
+                        dpi=graph.get("dpi", 300),
+                        format=fmt
+                    )
 
 
 if __name__ == "__main__":
