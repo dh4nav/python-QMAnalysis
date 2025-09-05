@@ -537,6 +537,9 @@ def main():
                         fillstyle = marker_fillstyles.get(marker, 'full')
                         label_positions = []  # Store label positions to check for overlap
                         label_texts = []
+                        group_threshold = 0.15  # threshold for grouping close markers
+                        group_centers = []
+                        group_labels = []
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
@@ -548,49 +551,23 @@ def main():
                                     ax.scatter(
                                         x, y, marker=marker, color='black', s=30, linewidths=0.5)
                                 label_text = str(row[series_by])
-                                # Increase offset for label
                                 offset_points = 20  # much larger horizontal offset
                                 display = ax.transData.transform((x, y))
                                 display_offset = (
                                     display[0] + offset_points, display[1])
                                 x_offset, y_offset = ax.transData.inverted().transform(display_offset)
 
-                                # Check for overlap with previous labels
-                                overlap = False
-                                for (lx, ly) in label_positions:
-                                    # Use a small threshold for overlap in data units
-                                    if abs(x_offset - lx) < 0.05 and abs(y_offset - ly) < 0.05:
-                                        overlap = True
+                                # Check for group of close markers of the same type
+                                grouped = False
+                                for (gx, gy, gmarker) in group_centers:
+                                    if marker == gmarker and abs(x - gx) < group_threshold and abs(y - gy) < group_threshold:
+                                        grouped = True
                                         break
-
-                                if not overlap:
+                                if not grouped:
                                     ax.text(x_offset, y, label_text,
                                             fontsize=8, va='center', ha='left')
-                                    label_positions.append((x_offset, y))
-                                    label_texts.append(label_text)
-                                    # Draw a line from label to symbol if offset is large
-                                    ax.plot([x, x_offset], [y, y],
-                                            color='gray', linewidth=0.5)
-                                else:
-                                    # Try to move label vertically to avoid overlap
-                                    y_try = y
-                                    for dy in np.linspace(-0.2, 0.2, 10):
-                                        y_try = y + dy
-                                        overlap2 = False
-                                        for (lx, ly) in label_positions:
-                                            if abs(x_offset - lx) < 0.05 and abs(y_try - ly) < 0.05:
-                                                overlap2 = True
-                                                break
-                                        if not overlap2:
-                                            ax.text(x_offset, y_try, label_text,
-                                                    fontsize=8, va='center', ha='left')
-                                            label_positions.append(
-                                                (x_offset, y_try))
-                                            label_texts.append(label_text)
-                                            ax.plot([x, x_offset], [
-                                                    y, y_try], color='gray', linewidth=0.5)
-                                            break
-                                    # If still overlapping, skip label for this point
+                                    group_centers.append((x, y, marker))
+                                    group_labels.append(label_text)
 
                     # Set axis labels
                     if x_label:
