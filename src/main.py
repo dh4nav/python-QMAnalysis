@@ -518,13 +518,13 @@ def main():
                         figsize=graph.get("figsize", (8, 6)))
 
                     # Define marker symbols to cycle through
-                    marker_symbols = ['x', '+', '|', '_', '1', '2',
-                                      '3', '4', '^', 'v', '<', '>', 'd', 's', 'p']
+                    marker_symbols = ['x', '.', '+', '1', '2',
+                                      '3', '4', '^', 'v', '<', '>', 'd', 's', 'p', '|', '_']
                     marker_fillstyles = {
                         '^': 'none', 'v': 'none', '<': 'none', '>': 'none',
                         'd': 'none', 's': 'none', 'p': 'none',
                         'x': 'full', '+': 'full', '|': 'full', '_': 'full',
-                        '1': 'full', '2': 'full', '3': 'full', '4': 'full'
+                        '1': 'full', '2': 'full', '3': 'full', '4': 'full', '.': 'none'
                     }
                     unique_files = df["file_name"].unique()
                     file_marker_map = {fname: marker_symbols[i % len(
