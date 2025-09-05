@@ -539,7 +539,7 @@ def main():
                         group_threshold = 0.15  # threshold for grouping close markers
                         group_centers = []
                         label_offset_data = 0.027  # reduced offset for more compact label placement
-                        label_stack_offset = 0.06  # doubled vertical offset for stacking labels
+                        label_stack_offset = 0.26  # doubled vertical offset for stacking labels
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
