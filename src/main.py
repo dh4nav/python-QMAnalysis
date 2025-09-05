@@ -536,10 +536,8 @@ def main():
                         marker = file_marker_map[fname]
                         fillstyle = marker_fillstyles.get(marker, 'full')
                         label_positions = []  # Store label positions to check for overlap
-                        label_texts = []
                         group_threshold = 0.15  # threshold for grouping close markers
                         group_centers = []
-                        group_labels = []
                         label_offset_data = 0.027  # reduced offset for more compact label placement
                         label_stack_offset = 0.03  # vertical offset for stacking labels
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
@@ -563,7 +561,7 @@ def main():
                                         grouped = True
                                         break
                                 if not grouped:
-                                    # Check for label overlap and stack vertically if needed
+                                    # Check for label overlap and stack vertically if needed (regardless of label text)
                                     stack_level = 0
                                     for (lx, ly) in label_positions:
                                         if abs(x_offset - lx) < 0.05 and abs(y_offset - ly) < 0.05:
@@ -574,7 +572,6 @@ def main():
                                     label_positions.append(
                                         (x_offset, y_offset_stacked))
                                     group_centers.append((x, y, marker))
-                                    group_labels.append(label_text)
 
                     # Set axis labels
                     if x_label:
