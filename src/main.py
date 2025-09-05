@@ -540,7 +540,7 @@ def main():
                         group_threshold = 0.15  # threshold for grouping close markers
                         group_centers = []
                         group_labels = []
-                        label_offset_data = 0.08  # consistent offset in data units
+                        label_offset_data = 0.027  # reduced offset for more compact label placement
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
@@ -552,7 +552,7 @@ def main():
                                     ax.scatter(
                                         x, y, marker=marker, color='black', s=30, linewidths=0.5)
                                 label_text = str(row[series_by])
-                                # Use a fixed offset in data units for label placement
+                                # Use a reduced offset in data units for label placement
                                 x_offset = x + label_offset_data
                                 y_offset = y
 
