@@ -518,8 +518,14 @@ def main():
                         figsize=graph.get("figsize", (8, 6)))
 
                     # Define marker symbols to cycle through
-                    marker_symbols = ['x', '+', 's', 'D', '^',
-                                      'v', '<', '>', 'p', '*', 'h', '|', '_']
+                    marker_symbols = ['x', '+', '|', '_', '1', '2',
+                                      '3', '4', '^', 'v', '<', '>', 'd', 's', 'p']
+                    marker_fillstyles = {
+                        '^': 'none', 'v': 'none', '<': 'none', '>': 'none',
+                        'd': 'none', 's': 'none', 'p': 'none',
+                        'x': 'full', '+': 'full', '|': 'full', '_': 'full',
+                        '1': 'full', '2': 'full', '3': 'full', '4': 'full'
+                    }
                     unique_files = df["file_name"].unique()
                     file_marker_map = {fname: marker_symbols[i % len(
                         marker_symbols)] for i, fname in enumerate(unique_files)}
@@ -528,6 +534,7 @@ def main():
                     for fname in unique_files:
                         subdf = df[df["file_name"] == fname]
                         marker = file_marker_map[fname]
+                        fillstyle = marker_fillstyles.get(marker, 'full')
                         label_positions = []  # Store label positions to check for overlap
                         label_texts = []
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
@@ -535,7 +542,7 @@ def main():
                                 x = row[xcol.name]
                                 y = row[ycol.name]
                                 ax.scatter(x, y, marker=marker,
-                                           color='black', s=30, linewidths=0.5)
+                                           color='black', s=30, linewidths=0.5, fillstyle=fillstyle)
                                 label_text = str(row[series_by])
                                 # Increase offset for label
                                 offset_points = 20  # much larger horizontal offset
