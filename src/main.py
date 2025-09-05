@@ -540,6 +540,7 @@ def main():
                         group_threshold = 0.15  # threshold for grouping close markers
                         group_centers = []
                         group_labels = []
+                        label_offset_data = 0.08  # consistent offset in data units
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
@@ -551,11 +552,9 @@ def main():
                                     ax.scatter(
                                         x, y, marker=marker, color='black', s=30, linewidths=0.5)
                                 label_text = str(row[series_by])
-                                offset_points = 20  # much larger horizontal offset
-                                display = ax.transData.transform((x, y))
-                                display_offset = (
-                                    display[0] + offset_points, display[1])
-                                x_offset, y_offset = ax.transData.inverted().transform(display_offset)
+                                # Use a fixed offset in data units for label placement
+                                x_offset = x + label_offset_data
+                                y_offset = y
 
                                 # Check for group of close markers of the same type
                                 grouped = False
@@ -564,7 +563,7 @@ def main():
                                         grouped = True
                                         break
                                 if not grouped:
-                                    ax.text(x_offset, y, label_text,
+                                    ax.text(x_offset, y_offset, label_text,
                                             fontsize=8, va='center', ha='left')
                                     group_centers.append((x, y, marker))
                                     group_labels.append(label_text)
