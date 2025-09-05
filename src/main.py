@@ -538,8 +538,8 @@ def main():
                         label_bboxes = []  # Store bounding boxes of placed labels
                         group_threshold = 0.15  # threshold for grouping close markers
                         group_centers = []
-                        label_offset_data = 0.027  # horizontal offset in data units
-                        label_stack_offset_px = 16  # vertical offset in pixels for stacking labels
+                        label_offset_data = 0.027  # reduced offset for more compact label placement
+                        label_stack_offset = 0.06  # doubled vertical offset for stacking labels
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
@@ -551,35 +551,37 @@ def main():
                                     ax.scatter(
                                         x, y, marker=marker, color='black', s=30, linewidths=0.5)
                                 label_text = str(row[series_by])
-                                # Calculate label position: horizontal offset in data, vertical offset in pixels
-                                display = ax.transData.transform((x, y))
-                                display_offset = (
-                                    display[0] + label_offset_data * ax.figure.dpi, display[1])
-                                # Stack vertically in display coordinates
-                                max_stack = 10
-                                for stack_level in range(max_stack):
-                                    y_disp_stacked = display_offset[1] + \
-                                        stack_level * label_stack_offset_px
-                                    label_disp_pos = (
-                                        display_offset[0], y_disp_stacked)
-                                    x_offset, y_offset = ax.transData.inverted().transform(label_disp_pos)
-                                    text_obj = ax.text(
-                                        x_offset, y_offset, label_text, fontsize=8, va='center', ha='left')
-                                    plt.draw()  # Ensure renderer is updated
-                                    bbox = text_obj.get_window_extent(
-                                        renderer=fig.canvas.get_renderer())
-                                    overlap = False
-                                    for prev_bbox in label_bboxes:
-                                        if bbox.overlaps(prev_bbox):
-                                            overlap = True
-                                            break
-                                    if not overlap:
-                                        label_bboxes.append(bbox)
-                                        group_centers.append((x, y, marker))
+                                x_offset = x + label_offset_data
+                                y_offset = y
+
+                                # Check for group of close markers of the same type
+                                grouped = False
+                                for (gx, gy, gmarker) in group_centers:
+                                    if marker == gmarker and abs(x - gx) < group_threshold and abs(y - gy) < group_threshold:
+                                        grouped = True
                                         break
-                                    else:
-                                        text_obj.remove()  # Remove overlapping label before trying next position
-                            # If all stack levels overlap, skip label
+                                if not grouped:
+                                    # Try to place label, stacking vertically if bounding boxes overlap
+                                    max_stack = 10
+                                    for stack_level in range(max_stack):
+                                        y_offset_stacked = y_offset + stack_level * label_stack_offset
+                                        text_obj = ax.text(
+                                            x_offset, y_offset_stacked, label_text, fontsize=8, va='center', ha='left')
+                                        plt.draw()  # Ensure renderer is updated
+                                        bbox = text_obj.get_window_extent(
+                                            renderer=fig.canvas.get_renderer())
+                                        overlap = False
+                                        for prev_bbox in label_bboxes:
+                                            if bbox.overlaps(prev_bbox):
+                                                overlap = True
+                                                break
+                                        if not overlap:
+                                            label_bboxes.append(bbox)
+                                            group_centers.append(
+                                                (x, y, marker))
+                                            break
+                                        else:
+                                            text_obj.remove()  # Remove overlapping label before trying next position
                 # Set axis labels
                 if x_label:
                     ax.set_xlabel(', '.join(x_label) if isinstance(
