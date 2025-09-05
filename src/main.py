@@ -541,6 +541,7 @@ def main():
                         group_centers = []
                         group_labels = []
                         label_offset_data = 0.027  # reduced offset for more compact label placement
+                        label_stack_offset = 0.03  # vertical offset for stacking labels
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
@@ -552,7 +553,6 @@ def main():
                                     ax.scatter(
                                         x, y, marker=marker, color='black', s=30, linewidths=0.5)
                                 label_text = str(row[series_by])
-                                # Use a reduced offset in data units for label placement
                                 x_offset = x + label_offset_data
                                 y_offset = y
 
@@ -563,8 +563,16 @@ def main():
                                         grouped = True
                                         break
                                 if not grouped:
-                                    ax.text(x_offset, y_offset, label_text,
-                                            fontsize=8, va='center', ha='left')
+                                    # Check for label overlap and stack vertically if needed
+                                    stack_level = 0
+                                    for (lx, ly) in label_positions:
+                                        if abs(x_offset - lx) < 0.05 and abs(y_offset - ly) < 0.05:
+                                            stack_level += 1
+                                    y_offset_stacked = y_offset + stack_level * label_stack_offset
+                                    ax.text(
+                                        x_offset, y_offset_stacked, label_text, fontsize=8, va='center', ha='left')
+                                    label_positions.append(
+                                        (x_offset, y_offset_stacked))
                                     group_centers.append((x, y, marker))
                                     group_labels.append(label_text)
 
