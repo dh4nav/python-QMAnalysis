@@ -541,8 +541,12 @@ def main():
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
                                 y = row[ycol.name]
-                                ax.scatter(x, y, marker=marker,
-                                           color='black', s=30, linewidths=0.5, fillstyle=fillstyle)
+                                if fillstyle == 'none':
+                                    ax.scatter(
+                                        x, y, marker=marker, facecolors='none', edgecolors='black', s=30, linewidths=0.5)
+                                else:
+                                    ax.scatter(
+                                        x, y, marker=marker, color='black', s=30, linewidths=0.5)
                                 label_text = str(row[series_by])
                                 # Increase offset for label
                                 offset_points = 20  # much larger horizontal offset
