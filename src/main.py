@@ -517,6 +517,25 @@ def main():
                     fig, ax = plt.subplots(
                         figsize=graph.get("figsize", (8, 6)))
 
+                    # Diagonal mode: square aspect ratio, identical axis scales, and diagonal line
+                    if graph.get('diagonal', False):
+                        ax.set_aspect('equal', adjustable='box')
+                        # Get min/max for both axes
+                        x_min = min([df[col.name].min() for col in x_cols])
+                        x_max = max([df[col.name].max() for col in x_cols])
+                        y_min = min([df[col.name].min() for col in y_cols])
+                        y_max = max([df[col.name].max() for col in y_cols])
+                        axis_min = min(x_min, y_min)
+                        axis_max = max(x_max, y_max)
+                        # Extend axes by 5% on each side
+                        axis_range = axis_max - axis_min
+                        pad = axis_range * 0.05
+                        ax.set_xlim(axis_min - pad, axis_max + pad)
+                        ax.set_ylim(axis_min - pad, axis_max + pad)
+                        # Add diagonal dashed line
+                        ax.plot([axis_min - pad, axis_max + pad], [axis_min - pad,
+                                axis_max + pad], linestyle='--', color='gray', linewidth=1)
+
                     # Define marker symbols to cycle through
                     marker_symbols = ['x', '.', '+', '1', '2',
                                       '3', '4', '^', 'v', '<', '>', 'd', 's', 'p', '|', '_']
@@ -538,8 +557,14 @@ def main():
                         label_bboxes = []  # Store bounding boxes of placed labels
                         group_threshold = 0.15  # threshold for grouping close markers
                         group_centers = []
-                        label_offset_data = 0.027  # reduced offset for more compact label placement
-                        label_stack_offset = 0.26  # doubled vertical offset for stacking labels
+                        # Always calculate label offsets after axis limits are set (works for both regular and diagonal plots)
+                        xlim = ax.get_xlim()
+                        ylim = ax.get_ylim()
+                        axis_range = max(xlim[1] - xlim[0], ylim[1] - ylim[0])
+                        label_offset_data = axis_range * 0.027  # 2.7% of axis range
+                        # 2.6% of axis range for stacking labels
+                        label_stack_offset = axis_range * 0.026
+                        # Label stacking for overlapping labels is always applied, regardless of plot mode
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
@@ -561,7 +586,7 @@ def main():
                                         grouped = True
                                         break
                                 if not grouped:
-                                    # Try to place label, stacking vertically if bounding boxes overlap
+                                    # Always stack labels vertically if bounding boxes overlap (works for all plot modes)
                                     max_stack = 10
                                     for stack_level in range(max_stack):
                                         y_offset_stacked = y_offset + stack_level * label_stack_offset

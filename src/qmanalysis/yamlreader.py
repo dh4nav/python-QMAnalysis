@@ -126,7 +126,8 @@ class YAMLFile:
                             Optional("file_format"): Str() | Seq(Str()),
                             Optional("title"): Str(),
                             Optional("dpi"): Int(),
-                            Optional("figsize"): Seq(Int())
+                            Optional("figsize"): Seq(Int()),
+                            Optional("diagonal"): Bool()
                         })
                     ),
                     Optional("file"): Seq(
