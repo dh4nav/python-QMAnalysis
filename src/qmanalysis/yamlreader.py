@@ -133,7 +133,9 @@ class YAMLFile:
                     Optional("file"): Seq(
                         Map({
                             "path": Str(),
-                            "type": Str()
+                            "type": Str(),
+                            Optional("multiindex"): Bool(),
+                            Optional("include_raw_data"): Bool()
                         })
                     )
                 })

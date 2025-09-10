@@ -1,4 +1,5 @@
 import argparse
+from tokenize import group
 import strictyaml as sy
 import qmanalysis.xyzreader as xr
 import qmanalysis.yamlreader as yr
@@ -435,10 +436,10 @@ def main():
         def export_csv_tuples(self, file_path, include_raw_data=False):
             df = self.frame_data.dataframe.copy()
             df = df.reset_index()
-            df['tipe'] = list(
+            df['label'] = list(
                 df[self.frame_data.dataframe.index.names].apply(tuple, axis=1))
             cols = [
-                'tipe'] + [col for col in df.columns if col not in self.frame_data.dataframe.index.names]
+                'label'] + [col for col in df.columns if col not in self.frame_data.dataframe.index.names]
             if not include_raw_data and 'raw_data' in cols:
                 cols.remove('raw_data')
             df_export = df[cols]
@@ -450,6 +451,24 @@ def main():
                 df = df.drop(columns=['raw_data'])
             df.to_csv(file_path)
 
+        def export_xls_tuples(self, file_path, include_raw_data=False):
+            df = self.frame_data.dataframe.copy()
+            df = df.reset_index()
+            df['label'] = list(
+                df[self.frame_data.dataframe.index.names].apply(tuple, axis=1))
+            cols = [
+                'label'] + [col for col in df.columns if col not in self.frame_data.dataframe.index.names]
+            if not include_raw_data and 'raw_data' in cols:
+                cols.remove('raw_data')
+            df_export = df[cols]
+            df_export.to_excel(file_path, index=False)
+
+        def export_xls_multiindex(self, file_path, include_raw_data=False):
+            df = self.frame_data.dataframe.copy()
+            if not include_raw_data and 'raw_data' in df.columns:
+                df = df.drop(columns=['raw_data'])
+            df.to_excel(file_path)
+
     exporter = FrameDataExporter(frame_data)
 
     for one_output in yamldata.get('output', []):
@@ -458,13 +477,18 @@ def main():
                 file_type = file.get('type', '').lower()
                 file_path = prepend_root_if_relative(
                     file_path=file['path'], root_path=args.root_path)
-                if file_type == "csv_tuples":
-                    exporter.export_csv_tuples(file_path)
-                elif file_type == "csv":
-                    exporter.export_csv_multiindex(file_path)
-                else:
-                    raise IndexError(f"{file_type}: Unknown file type")
-
+                # CSV export
+                if file_type == 'csv':
+                    if file.get('multiindex', False):
+                        exporter.export_csv_multiindex(file_path)
+                    else:
+                        exporter.export_csv_tuples(file_path)
+                # XLS export
+                if file_type == 'xls' or file_type == 'xlsx':
+                    if file.get('multiindex', False):
+                        exporter.export_xls_multiindex(file_path)
+                    else:
+                        exporter.export_xls_tuples(file_path)
     # Visualization: Plot measurement n vs m with series grouped by file_name and timestep_name
     # Example YAML specification for such a plot:
     # output:
@@ -517,24 +541,32 @@ def main():
                     fig, ax = plt.subplots(
                         figsize=graph.get("figsize", (8, 6)))
 
+                    # Get min/max for both axes
+                    x_min = min([df[col.name].min() for col in x_cols])
+                    x_max = max([df[col.name].max() for col in x_cols])
+                    y_min = min([df[col.name].min() for col in y_cols])
+                    y_max = max([df[col.name].max() for col in y_cols])
+
                     # Diagonal mode: square aspect ratio, identical axis scales, and diagonal line
                     if graph.get('diagonal', False):
                         ax.set_aspect('equal', adjustable='box')
-                        # Get min/max for both axes
-                        x_min = min([df[col.name].min() for col in x_cols])
-                        x_max = max([df[col.name].max() for col in x_cols])
-                        y_min = min([df[col.name].min() for col in y_cols])
-                        y_max = max([df[col.name].max() for col in y_cols])
-                        axis_min = min(x_min, y_min)
-                        axis_max = max(x_max, y_max)
-                        # Extend axes by 5% on each side
-                        axis_range = axis_max - axis_min
-                        pad = axis_range * 0.05
-                        ax.set_xlim(axis_min - pad, axis_max + pad)
-                        ax.set_ylim(axis_min - pad, axis_max + pad)
+                        x_min = min(x_min, y_min)
+                        y_min = x_min
+                        x_max = max(x_max, y_max)
+                        y_max = x_max
+
+                    # Extend axes by 5% on each side
+                    x_axis_range = x_max - x_min
+                    y_axis_range = y_max - y_min
+                    x_pad = x_axis_range * 0.05
+                    y_pad = y_axis_range * 0.05
+                    ax.set_xlim(x_min - x_pad, x_max + x_pad)
+                    ax.set_ylim(y_min - y_pad, y_max + y_pad)
+
+                    if graph.get('diagonal', False):
                         # Add diagonal dashed line
-                        ax.plot([axis_min - pad, axis_max + pad], [axis_min - pad,
-                                axis_max + pad], linestyle='--', color='gray', linewidth=1)
+                        ax.plot([x_min - x_pad, x_max + x_pad], [y_min - y_pad,
+                                y_max + y_pad], linestyle='--', color='gray', linewidth=1)
 
                     # Define marker symbols to cycle through
                     marker_symbols = ['x', '.', '+', '1', '2',
@@ -549,64 +581,103 @@ def main():
                     file_marker_map = {fname: marker_symbols[i % len(
                         marker_symbols)] for i, fname in enumerate(unique_files)}
 
+                    # Store all marker and label positions for optimization
+                    # {marker_position: (x,y), marker_type: ".", label_position: (x,y), label_text: "label"}
+                    marker_and_label_data = []
+
                     # Plot each file_name as a separate series with its marker
                     for fname in unique_files:
                         subdf = df[df["file_name"] == fname]
                         marker = file_marker_map[fname]
                         fillstyle = marker_fillstyles.get(marker, 'full')
                         label_bboxes = []  # Store bounding boxes of placed labels
-                        group_threshold = 0.15  # threshold for grouping close markers
+                        group_threshold = 0.20  # threshold for grouping close markers
                         group_centers = []
-                        # Always calculate label offsets after axis limits are set (works for both regular and diagonal plots)
+                        # Always calculate label offsets after axis limits are set
                         xlim = ax.get_xlim()
                         ylim = ax.get_ylim()
-                        axis_range = max(xlim[1] - xlim[0], ylim[1] - ylim[0])
+                        # if graph.get('diagonal', False):
+                        #     axis_range = max(
+                        #         xlim[1] - xlim[0], ylim[1] - ylim[0])
+                        # else:
+                        #     axis_range = xlim[1] - xlim[0]
+                        axis_range = xlim[1] - xlim[0]
+                        print(f"Axis range: {axis_range}")
                         label_offset_data = axis_range * 0.027  # 2.7% of axis range
                         # 2.6% of axis range for stacking labels
                         label_stack_offset = axis_range * 0.026
-                        # Label stacking for overlapping labels is always applied, regardless of plot mode
+                        # Collect all marker and label positions for optimization
+                        all_marker_positions = [(row[xcol.name], row[ycol.name]) for i, (xcol, ycol) in enumerate(
+                            zip(x_cols, y_cols)) for idx, row in subdf.iterrows()]
+                        all_label_positions = []
+                        label_texts = []
+                        label_marker_indices = []
+                        # First pass: calculate initial label positions
                         for i, (xcol, ycol) in enumerate(zip(x_cols, y_cols)):
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
                                 y = row[ycol.name]
-                                if fillstyle == 'none':
-                                    ax.scatter(
-                                        x, y, marker=marker, facecolors='none', edgecolors='black', s=30, linewidths=0.5)
-                                else:
-                                    ax.scatter(
-                                        x, y, marker=marker, color='black', s=30, linewidths=0.5)
                                 label_text = str(row[series_by])
                                 x_offset = x + label_offset_data
                                 y_offset = y
+                                all_label_positions.append(
+                                    (x_offset, y_offset))
+                                label_texts.append(label_text)
+                                label_marker_indices.append((x, y))
+                        used_positions = prune_close_positions(
+                            all_marker_positions, group_threshold, x_axis_range, y_axis_range)
 
-                                # Check for group of close markers of the same type
-                                grouped = False
-                                for (gx, gy, gmarker) in group_centers:
-                                    if marker == gmarker and abs(x - gx) < group_threshold and abs(y - gy) < group_threshold:
-                                        grouped = True
-                                        break
-                                if not grouped:
-                                    # Always stack labels vertically if bounding boxes overlap (works for all plot modes)
-                                    max_stack = 10
-                                    for stack_level in range(max_stack):
-                                        y_offset_stacked = y_offset + stack_level * label_stack_offset
-                                        text_obj = ax.text(
-                                            x_offset, y_offset_stacked, label_text, fontsize=8, va='center', ha='left')
-                                        plt.draw()  # Ensure renderer is updated
-                                        bbox = text_obj.get_window_extent(
-                                            renderer=fig.canvas.get_renderer())
-                                        overlap = False
-                                        for prev_bbox in label_bboxes:
-                                            if bbox.overlaps(prev_bbox):
-                                                overlap = True
-                                                break
-                                        if not overlap:
-                                            label_bboxes.append(bbox)
-                                            group_centers.append(
-                                                (x, y, marker))
-                                            break
-                                        else:
-                                            text_obj.remove()  # Remove overlapping label before trying next position
+                        # Map used positions back to their original labels
+                        for i, pos in enumerate(used_positions):
+                            if pos:
+                                marker_and_label_data.append({
+                                    "marker_position": all_marker_positions[i],
+                                    "marker_type": marker,
+                                    "label_position": all_label_positions[i],
+                                    "label_text": label_texts[i]
+                                })
+                            else:
+                                marker_and_label_data.append({
+                                    "marker_position": all_marker_positions[i],
+                                    "marker_type": marker
+                                })
+
+                    # Second pass: optimize label positions
+                    # optimized_label_positions = []
+                    # for i, (marker_pos, label_pos) in enumerate(zip(label_marker_indices, all_label_positions)):
+                    #     # Exclude current marker and label from other_positions
+                    #     other_positions = [pos for j, pos in enumerate(
+                    #         all_marker_positions + all_label_positions) if j != i and pos != marker_pos and pos != label_pos]
+                    #     new_label_pos = find_optimal_label_position(
+                    #         marker_pos, label_pos, other_positions)
+                    #     optimized_label_positions.append(new_label_pos)
+                    # Third pass: plot markers and optimized labels
+                    label_bboxes = []
+                    print(
+                        f'Plotting markers and labels... ')
+                    for i, marker_and_label in enumerate(marker_and_label_data):
+                        print(f'{marker_and_label}')
+                        (x, y) = marker_and_label["marker_position"]
+                        if marker_fillstyles[marker_and_label["marker_type"]] == 'none':
+                            ax.scatter(
+                                x, y, marker=marker_and_label["marker_type"], facecolors='none', edgecolors='black', s=30, linewidths=0.5)
+                        else:
+                            ax.scatter(
+                                x, y, marker=marker_and_label["marker_type"], color='black', s=30, linewidths=0.5)
+                    # for i, marker_and_label in enumerate(marker_and_label_data):  #zip(label_texts, optimized_label_positions)):
+                        if "label_position" in marker_and_label:
+                            print(
+                                f'Placing label: {marker_and_label["label_text"]} at {marker_and_label["label_position"]}')
+                            (x_opt, y_opt) = marker_and_label["label_position"]
+                            label_text = marker_and_label["label_text"]
+                            print(
+                                f'Placing label: {label_text} at {x_opt}, {y_opt}')
+                            text_obj = ax.text(
+                                x_opt, y_opt, label_text, fontsize=8, va='center', ha='left')
+                            print(f'text object: {text_obj}')
+                            plt.draw()
+                            bbox = text_obj.get_window_extent(
+                                renderer=fig.canvas.get_renderer())
                 # Set axis labels
                 if x_label:
                     ax.set_xlabel(', '.join(x_label) if isinstance(
@@ -622,7 +693,7 @@ def main():
                 if "title" in graph and graph["title"]:
                     ax.set_title(graph["title"])
 
-                fig.tight_layout()
+                # fig.tight_layout()
 
                 file_base = prepend_root_if_relative(
                     file_path=graph['file'], root_path=args.root_path)
@@ -641,6 +712,74 @@ def main():
                         dpi=graph.get("dpi", 300),
                         format=fmt
                     )
+
+
+def prune_close_positions(positions, threshold, x_scale=1.0, y_scale=1.0):
+    """
+    Given a list of positions [(x1, y1), (x2, y2), ...] and a threshold,
+    return a new list where positions closer than the threshold are grouped
+    and replaced by their centroid.
+    """
+
+    positions = np.array(positions)
+    used = np.ones(len(positions), dtype=bool)
+    if (len(positions) == 1):
+        return used
+
+    for i in range(len(positions)):
+        for j in range(len(positions)):
+            if i != j:
+                # print(
+                #     f'comparing {i} and {j}: {positions[i]} vs {positions[j]} ({used[i]}, {used[j]}) => {positions[i] - positions[j]} => {((positions[i] - positions[j]) / np.array([x_scale, y_scale]))} => {np.linalg.norm((positions[i] - positions[j]) / np.array([x_scale, y_scale]))}')
+
+                if used[i] and used[j] and np.linalg.norm((positions[i] - positions[j]) / np.array([x_scale, y_scale])) < threshold:
+                    used[j] = False
+    print(f"Pruning positions: {positions} -> {used}")
+    return used
+
+
+def find_optimal_label_position(marker_pos, label_pos, other_positions):
+    """
+    Given marker_pos (x, y), label_pos (lx, ly), and a list of other_positions [(x, y), ...],
+    calculate a circle around the marker with radius equal to the current label distance,
+    and return the position on that circle farthest from any other element on the circle.
+    """
+    x, y = marker_pos
+    lx, ly = label_pos
+    radius = np.hypot(lx - x, ly - y)
+    if radius == 0:
+        # Default to a small offset if label is at marker
+        radius = 0.1
+    # Calculate angles of all other elements relative to marker
+    angles = []
+    for ox, oy in other_positions:
+        dx = ox - x
+        dy = oy - y
+        if dx == 0 and dy == 0:
+            continue  # skip marker itself
+        angle = np.arctan2(dy, dx)
+        angles.append(angle)
+    # Sort angles
+    angles = np.sort(angles)
+    # Add wrap-around for circular gap
+    if len(angles) == 0:
+        # No other elements, keep original label angle
+        label_angle = np.arctan2(ly - y, lx - x)
+        return (x + radius * np.cos(label_angle), y + radius * np.sin(label_angle))
+    # Find largest gap between consecutive angles
+    gaps = []
+    for i in range(len(angles)):
+        a1 = angles[i]
+        a2 = angles[(i + 1) % len(angles)]
+        gap = (a2 - a1) % (2 * np.pi)
+        gaps.append((gap, a1, a2))
+    # Find the largest gap
+    max_gap, a1, a2 = max(gaps, key=lambda t: t[0])
+    # Place label at midpoint of largest gap
+    mid_angle = (a1 + max_gap / 2) % (2 * np.pi)
+    new_lx = x + radius * np.cos(mid_angle)
+    new_ly = y + radius * np.sin(mid_angle)
+    return (new_lx, new_ly)
 
 
 if __name__ == "__main__":
