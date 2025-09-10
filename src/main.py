@@ -568,6 +568,8 @@ def main():
                         ax.plot([x_min - x_pad, x_max + x_pad], [y_min - y_pad,
                                 y_max + y_pad], linestyle='--', color='gray', linewidth=1)
 
+                    label_offset_percentage = 0.03  # 3% of axis range
+
                     # Define marker symbols to cycle through
                     marker_symbols = ['x', '.', '+', '1', '2',
                                       '3', '4', '^', 'v', '<', '>', 'd', 's', 'p', '|', '_']
@@ -593,19 +595,9 @@ def main():
                         label_bboxes = []  # Store bounding boxes of placed labels
                         group_threshold = 0.20  # threshold for grouping close markers
                         group_centers = []
-                        # Always calculate label offsets after axis limits are set
-                        xlim = ax.get_xlim()
-                        ylim = ax.get_ylim()
-                        # if graph.get('diagonal', False):
-                        #     axis_range = max(
-                        #         xlim[1] - xlim[0], ylim[1] - ylim[0])
-                        # else:
-                        #     axis_range = xlim[1] - xlim[0]
-                        axis_range = xlim[1] - xlim[0]
-                        print(f"Axis range: {axis_range}")
-                        label_offset_data = axis_range * 0.027  # 2.7% of axis range
+                        label_offset_data = x_axis_range * label_offset_percentage
                         # 2.6% of axis range for stacking labels
-                        label_stack_offset = axis_range * 0.026
+                        label_stack_offset = x_axis_range * label_offset_percentage
                         # Collect all marker and label positions for optimization
                         all_marker_positions = [(row[xcol.name], row[ycol.name]) for i, (xcol, ycol) in enumerate(
                             zip(x_cols, y_cols)) for idx, row in subdf.iterrows()]
@@ -641,8 +633,54 @@ def main():
                                     "marker_position": all_marker_positions[i],
                                     "marker_type": marker
                                 })
+                                # Calculate axis lengths and scales for optimal label placement
+                                x_axis_length = x_max - x_min if x_max != x_min else 1.0
+                                y_axis_length = y_max - y_min if y_max != y_min else 1.0
+                                bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+                                width, height = bbox.width, bbox.height
+                                aspect_ratio = width / height if height != 0 else 1.0
+                                x_scale = aspect_ratio
+                                y_scale = 1.0
 
                     # Second pass: optimize label positions
+                    for i in range(len(marker_and_label_data)):
+                        if "label_position" in marker_and_label_data[i]:
+                            marker_pos = marker_and_label_data[i]["marker_position"]
+                            label_pos = marker_and_label_data[i]["label_position"]
+                            other_positions = [pos for j, pos in enumerate(
+                                [d["marker_position"] for d in marker_and_label_data if "marker_position" in d] + [d["label_position"] for d in marker_and_label_data if "label_position" in d]) if j != i and pos != marker_pos and pos != label_pos]
+                            new_label_pos = find_optimal_label_position(
+                                marker_pos, label_pos, other_positions,
+                                x_axis_length=x_axis_length,
+                                y_axis_length=y_axis_length,
+                                x_scale=x_scale,
+                                y_scale=y_scale
+                            )
+                            marker_and_label_data[i]["label_position"] = new_label_pos
+                    for i in range(len(marker_and_label_data)):
+                        if "label_position" in marker_and_label_data[i]:
+                            marker_pos = marker_and_label_data[i]["marker_position"]
+                            label_pos = marker_and_label_data[i]["label_position"]
+                            other_positions = [pos for j, pos in enumerate(
+                                [d["marker_position"] for d in marker_and_label_data if "marker_position" in d] + [d["label_position"] for d in marker_and_label_data if "label_position" in d]) if j != i and pos != marker_pos and pos != label_pos]
+                            new_label_pos = find_optimal_label_position(
+                                marker_pos, label_pos, other_positions,
+                                x_axis_length=x_axis_length,
+                                y_axis_length=y_axis_length,
+                                x_scale=x_scale,
+                                y_scale=y_scale
+                            )
+                            marker_and_label_data[i]["label_position"] = new_label_pos
+                    # for i in range(len(marker_and_label_data)):
+                    #     if "label_position" in marker_and_label_data[i]:
+                    #         marker_pos = marker_and_label_data[i]["marker_position"]
+                    #         label_pos = marker_and_label_data[i]["label_position"]
+                    #         other_positions = [pos for j, pos in enumerate(
+                    #             all_marker_positions + all_label_positions) if j != i and pos != marker_pos and pos != label_pos]
+                    #         new_label_pos = find_optimal_label_position(
+                    #             marker_pos, label_pos, other_positions)
+                    #         marker_and_label_data[i]["label_position"] = new_label_pos
+
                     # optimized_label_positions = []
                     # for i, (marker_pos, label_pos) in enumerate(zip(label_marker_indices, all_label_positions)):
                     #     # Exclude current marker and label from other_positions
@@ -673,7 +711,7 @@ def main():
                             print(
                                 f'Placing label: {label_text} at {x_opt}, {y_opt}')
                             text_obj = ax.text(
-                                x_opt, y_opt, label_text, fontsize=8, va='center', ha='left')
+                                x_opt, y_opt, label_text, fontsize=8, va='center', ha='center')
                             print(f'text object: {text_obj}')
                             plt.draw()
                             bbox = text_obj.get_window_extent(
@@ -738,48 +776,89 @@ def prune_close_positions(positions, threshold, x_scale=1.0, y_scale=1.0):
     return used
 
 
-def find_optimal_label_position(marker_pos, label_pos, other_positions):
+def find_optimal_label_position(marker_pos, label_pos, other_positions, x_axis_length=1.0, y_axis_length=1.0, x_scale=1.0, y_scale=1.0):
     """
     Given marker_pos (x, y), label_pos (lx, ly), and a list of other_positions [(x, y), ...],
     calculate a circle around the marker with radius equal to the current label distance,
     and return the position on that circle farthest from any other element on the circle.
+    The circle is scaled according to x_axis_length, y_axis_length, x_scale, and y_scale.
     """
     x, y = marker_pos
     lx, ly = label_pos
-    radius = np.hypot(lx - x, ly - y)
+    # Compute scaled radius so that the circle is correct in image coordinates
+    dx = (lx - x) * x_scale / x_axis_length
+    dy = (ly - y) * y_scale / y_axis_length
+    radius = np.hypot(dx, dy)
     if radius == 0:
-        # Default to a small offset if label is at marker
         radius = 0.1
-    # Calculate angles of all other elements relative to marker
+    # Calculate angles of all other elements relative to marker, with scaling
     angles = []
     for ox, oy in other_positions:
-        dx = ox - x
-        dy = oy - y
-        if dx == 0 and dy == 0:
-            continue  # skip marker itself
-        angle = np.arctan2(dy, dx)
+        ddx = (ox - x) * x_scale / x_axis_length
+        ddy = (oy - y) * y_scale / y_axis_length
+        if ddx == 0 and ddy == 0:
+            continue
+        angle = np.arctan2(ddy, ddx)
         angles.append(angle)
-    # Sort angles
     angles = np.sort(angles)
-    # Add wrap-around for circular gap
     if len(angles) == 0:
-        # No other elements, keep original label angle
-        label_angle = np.arctan2(ly - y, lx - x)
-        return (x + radius * np.cos(label_angle), y + radius * np.sin(label_angle))
-    # Find largest gap between consecutive angles
+        label_angle = np.arctan2(dy, dx)
+        new_lx = x + radius * np.cos(label_angle) * x_axis_length / x_scale
+        new_ly = y + radius * np.sin(label_angle) * y_axis_length / y_scale
+        return (new_lx, new_ly)
     gaps = []
     for i in range(len(angles)):
         a1 = angles[i]
         a2 = angles[(i + 1) % len(angles)]
         gap = (a2 - a1) % (2 * np.pi)
         gaps.append((gap, a1, a2))
-    # Find the largest gap
     max_gap, a1, a2 = max(gaps, key=lambda t: t[0])
-    # Place label at midpoint of largest gap
     mid_angle = (a1 + max_gap / 2) % (2 * np.pi)
-    new_lx = x + radius * np.cos(mid_angle)
-    new_ly = y + radius * np.sin(mid_angle)
+    new_lx = x + radius * np.cos(mid_angle) * x_axis_length / x_scale
+    new_ly = y + radius * np.sin(mid_angle) * y_axis_length / y_scale
     return (new_lx, new_ly)
+# def find_optimal_label_position(marker_pos, label_pos, other_positions):
+#     """
+#     Given marker_pos (x, y), label_pos (lx, ly), and a list of other_positions [(x, y), ...],
+#     calculate a circle around the marker with radius equal to the current label distance,
+#     and return the position on that circle farthest from any other element on the circle.
+#     """
+#     x, y = marker_pos
+#     lx, ly = label_pos
+#     radius = np.hypot(lx - x, ly - y)
+#     if radius == 0:
+#         # Default to a small offset if label is at marker
+#         radius = 0.1
+#     # Calculate angles of all other elements relative to marker
+#     angles = []
+#     for ox, oy in other_positions:
+#         dx = ox - x
+#         dy = oy - y
+#         if dx == 0 and dy == 0:
+#             continue  # skip marker itself
+#         angle = np.arctan2(dy, dx)
+#         angles.append(angle)
+#     # Sort angles
+#     angles = np.sort(angles)
+#     # Add wrap-around for circular gap
+#     if len(angles) == 0:
+#         # No other elements, keep original label angle
+#         label_angle = np.arctan2(ly - y, lx - x)
+#         return (x + radius * np.cos(label_angle), y + radius * np.sin(label_angle))
+#     # Find largest gap between consecutive angles
+#     gaps = []
+#     for i in range(len(angles)):
+#         a1 = angles[i]
+#         a2 = angles[(i + 1) % len(angles)]
+#         gap = (a2 - a1) % (2 * np.pi)
+#         gaps.append((gap, a1, a2))
+#     # Find the largest gap
+#     max_gap, a1, a2 = max(gaps, key=lambda t: t[0])
+#     # Place label at midpoint of largest gap
+#     mid_angle = (a1 + max_gap / 2) % (2 * np.pi)
+#     new_lx = x + radius * np.cos(mid_angle)
+#     new_ly = y + radius * np.sin(mid_angle)
+#     return (new_lx, new_ly)
 
 
 if __name__ == "__main__":
