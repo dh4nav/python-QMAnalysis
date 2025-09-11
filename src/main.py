@@ -14,6 +14,7 @@ from qmanalysis.globalconstantsreader import GlobalConstantsFile
 import pandas as pd
 import numpy as np
 import scipy
+from scipy.optimize import minimize
 
 import qmanalysis.customcalculationrunner as ccr
 from qmanalysis.gaussianoutreader import GaussianOutFile
@@ -563,12 +564,12 @@ def main():
                     ax.set_xlim(x_min - x_pad, x_max + x_pad)
                     ax.set_ylim(y_min - y_pad, y_max + y_pad)
 
+                    label_offset_percentage = 0.03  # 3% of axis range
                     if graph.get('diagonal', False):
+                        label_offset_percentage = 0.05  # 5% of axis range
                         # Add diagonal dashed line
                         ax.plot([x_min - x_pad, x_max + x_pad], [y_min - y_pad,
                                 y_max + y_pad], linestyle='--', color='gray', linewidth=1)
-
-                    label_offset_percentage = 0.03  # 3% of axis range
 
                     # Define marker symbols to cycle through
                     marker_symbols = ['x', '.', '+', '1', '2',
@@ -642,24 +643,36 @@ def main():
                                 x_scale = aspect_ratio
                                 y_scale = 1.0
 
-                    # Second pass: optimize label positions
-                    for i in range(len(marker_and_label_data)):
-                        if "label_position" in marker_and_label_data[i]:
-                            marker_pos = marker_and_label_data[i]["marker_position"]
-                            label_pos = marker_and_label_data[i]["label_position"]
-                            other_positions = [pos for j, pos in enumerate(
-                                [d["marker_position"] for d in marker_and_label_data if "marker_position" in d] + [d["label_position"] for d in marker_and_label_data if "label_position" in d]) if j != i and pos != marker_pos and pos != label_pos]
-                            new_label_pos = find_optimal_label_position(
-                                marker_pos, label_pos, other_positions,
-                                x_axis_length=x_axis_length,
-                                y_axis_length=y_axis_length,
-                                x_scale=x_scale,
-                                y_scale=y_scale,
-                                xlim=(x_min - x_pad, x_max + x_pad),
-                                ylim=(y_min - y_pad, y_max + y_pad),
-                                diagonal_line=graph.get('diagonal', False)
-                            )
-                            marker_and_label_data[i]["label_position"] = new_label_pos
+                    # Second pass: globally optimize label positions
+                    label_indices = [i for i, d in enumerate(
+                        marker_and_label_data) if "label_position" in d]
+                    if label_indices:
+                        marker_positions = [
+                            marker_and_label_data[i]["marker_position"] for i in label_indices]
+                        initial_label_positions = [
+                            marker_and_label_data[i]["label_position"] for i in label_indices]
+                        # Other positions: all marker positions and label positions except current labels
+                        other_positions = [d["marker_position"] for i, d in enumerate(
+                            marker_and_label_data) if i not in label_indices]
+                        # Borders and diagonal line are handled in the function
+                        # opt_label_positions = find_optimal_label_positions(
+                        #     marker_positions,
+                        #     initial_label_positions,
+                        #     other_positions,
+                        #     x_axis_length=x_axis_length,
+                        #     y_axis_length=y_axis_length,
+                        #     x_scale=x_scale,
+                        #     y_scale=y_scale,
+                        #     xlim=(x_min - x_pad, x_max + x_pad),
+                        #     ylim=(y_min - y_pad, y_max + y_pad),
+                        #     diagonal_line=graph.get('diagonal', False)
+                        # )
+
+                        opt_label_positions = circler(marker_positions, other_positions, label_offset_percentage, x_axis_start=x_min,
+                                                      y_axis_start=y_min, x_axis_end=x_max, y_axis_end=y_max,  diagonal_line=graph.get('diagonal', False))
+                        # Assign optimized positions back
+                        for idx, opt_pos in zip(label_indices, opt_label_positions):
+                            marker_and_label_data[idx]["label_position"] = opt_pos
                     # for i in range(len(marker_and_label_data)):
                     #     if "label_position" in marker_and_label_data[i]:
                     #         marker_pos = marker_and_label_data[i]["marker_position"]
@@ -778,81 +791,362 @@ def prune_close_positions(positions, threshold, x_scale=1.0, y_scale=1.0):
 
                 if used[i] and used[j] and np.linalg.norm((positions[i] - positions[j]) / np.array([x_scale, y_scale])) < threshold:
                     used[j] = False
-    print(f"Pruning positions: {positions} -> {used}")
+    # print(f"Pruning positions: {positions} -> {used}")
     return used
 
 
-def find_optimal_label_position(marker_pos, label_pos, other_positions, x_axis_length=1.0, y_axis_length=1.0, x_scale=1.0, y_scale=1.0, xlim=None, ylim=None, diagonal_line=False):
+def find_optimal_label_positions(marker_positions, initial_label_positions, other_positions, x_axis_length=1.0, y_axis_length=1.0, x_scale=1.0, y_scale=1.0, xlim=None, ylim=None, diagonal_line=False):
     """
-    Given marker_pos (x, y), label_pos (lx, ly), and a list of other_positions [(x, y), ...],
-    calculate a circle around the marker with radius equal to the current label distance,
-    and return the position on that circle farthest from any other element on the circle.
-    The circle is scaled according to x_axis_length, y_axis_length, x_scale, and y_scale.
-    Also avoids plot borders and diagonal line if present.
+    Optimize label positions around markers to avoid overlaps and forbidden regions.
+
+    Parameters:
+        marker_positions (list of tuple): List of (x, y) positions for each marker.
+        initial_label_positions (list of tuple): Initial (x, y) positions for each label.
+        other_positions (list of tuple): Positions of other markers and labels to avoid.
+        x_axis_length (float): Length of the x-axis for scaling.
+        y_axis_length (float): Length of the y-axis for scaling.
+        x_scale (float): Scale factor for x-axis.
+        y_scale (float): Scale factor for y-axis.
+        xlim (tuple): Limits of the x-axis as (min, max).
+        ylim (tuple): Limits of the y-axis as (min, max).
+        diagonal_line (bool): Whether to avoid the diagonal line region.
+
+    Returns:
+        list of tuple: Optimized (x, y) positions for each label.
     """
-    x, y = marker_pos
-    lx, ly = label_pos
-    # Compute scaled radius so that the circle is correct in image coordinates
-    dx = (lx - x) * x_scale / x_axis_length
-    dy = (ly - y) * y_scale / y_axis_length
-    radius = np.hypot(dx, dy)
-    if radius == 0:
-        radius = 0.1
-    # Calculate angles of all other elements relative to marker, with scaling
-    angles = []
-    for ox, oy in other_positions:
-        ddx = (ox - x) * x_scale / x_axis_length
-        ddy = (oy - y) * y_scale / y_axis_length
-        if ddx == 0 and ddy == 0:
-            continue
-        angle = np.arctan2(ddy, ddx)
-        angles.append(angle)
-    # Add border avoidance: treat border as forbidden angles
-    if xlim is not None and ylim is not None:
-        border_angles = []
-        # Sample points on the border and project to angles
-        for bx in [xlim[0], xlim[1]]:
-            for by in np.linspace(ylim[0], ylim[1], 20):
-                ddx = (bx - x) * x_scale / x_axis_length
-                ddy = (by - y) * y_scale / y_axis_length
-                angle = np.arctan2(ddy, ddx)
-                border_angles.append(angle)
-        for by in [ylim[0], ylim[1]]:
-            for bx in np.linspace(xlim[0], xlim[1], 20):
-                ddx = (bx - x) * x_scale / x_axis_length
-                ddy = (by - y) * y_scale / y_axis_length
-                angle = np.arctan2(ddy, ddx)
-                border_angles.append(angle)
-        angles.extend(border_angles)
-    # Add diagonal line avoidance if present
-    if diagonal_line and xlim is not None and ylim is not None:
-        diag_angles = []
-        # Sample points along the diagonal line
-        for t in np.linspace(0, 1, 40):
-            bx = xlim[0] + t * (xlim[1] - xlim[0])
-            by = ylim[0] + t * (ylim[1] - ylim[0])
-            ddx = (bx - x) * x_scale / x_axis_length
-            ddy = (by - y) * y_scale / y_axis_length
-            angle = np.arctan2(ddy, ddx)
-            diag_angles.append(angle)
-        angles.extend(diag_angles)
-    angles = np.sort(angles)
-    if len(angles) == 0:
-        label_angle = np.arctan2(dy, dx)
-        new_lx = x + radius * np.cos(label_angle) * x_axis_length / x_scale
-        new_ly = y + radius * np.sin(label_angle) * y_axis_length / y_scale
-        return (new_lx, new_ly)
-    gaps = []
-    for i in range(len(angles)):
-        a1 = angles[i]
-        a2 = angles[(i + 1) % len(angles)]
-        gap = (a2 - a1) % (2 * np.pi)
-        gaps.append((gap, a1, a2))
-    max_gap, a1, a2 = max(gaps, key=lambda t: t[0])
-    mid_angle = (a1 + max_gap / 2) % (2 * np.pi)
-    new_lx = x + radius * np.cos(mid_angle) * x_axis_length / x_scale
-    new_ly = y + radius * np.sin(mid_angle) * y_axis_length / y_scale
-    return (new_lx, new_ly)
+    n_labels = len(marker_positions)
+
+    def pos_to_angle(marker, label):
+        dx = (label[0] - marker[0]) * x_scale / x_axis_length
+        dy = (label[1] - marker[1]) * y_scale / y_axis_length
+        return np.arctan2(dy, dx)
+    initial_angles = np.array([pos_to_angle(
+        marker_positions[i], initial_label_positions[i]) for i in range(n_labels)])
+    radii = np.array([np.hypot((initial_label_positions[i][0] - marker_positions[i][0]) * x_scale / x_axis_length,
+                               (initial_label_positions[i][1] - marker_positions[i][1]) * y_scale / y_axis_length) for i in range(n_labels)])
+    MIN_RADIUS = 0.1
+    radii[radii == 0] = MIN_RADIUS
+    forbidden_angles = [[] for _ in range(n_labels)]
+    border_sample_count = 6  # fewer samples
+    # only sample border points within 25% axis length
+    border_distance_threshold = 0.25
+    diag_sample_count = 6
+    diag_distance_threshold = 0.25
+    for i in range(n_labels):
+        x, y = marker_positions[i]
+        # Other markers/labels
+        for ox, oy in other_positions:
+            ddx = (ox - x) * x_scale / x_axis_length
+            ddy = (oy - y) * y_scale / y_axis_length
+            if ddx == 0 and ddy == 0:
+                continue
+            dist = np.hypot(ddx, ddy)
+            n_labels = len(marker_positions)
+
+            def pos_to_angle(marker, label):
+                dx = (label[0] - marker[0]) * x_scale / x_axis_length
+                dy = (label[1] - marker[1]) * y_scale / y_axis_length
+                return np.arctan2(dy, dx)
+
+            initial_angles = np.array([pos_to_angle(
+                marker_positions[i], initial_label_positions[i]) for i in range(n_labels)])
+            radii = np.array([np.hypot((initial_label_positions[i][0] - marker_positions[i][0]) * x_scale / x_axis_length,
+                                       (initial_label_positions[i][1] - marker_positions[i][1]) * y_scale / y_axis_length) for i in range(n_labels)])
+            MIN_RADIUS = 0.1
+            radii[radii == 0] = MIN_RADIUS
+
+            # Precompute forbidden angles and distances for each label
+            forbidden_angles = [[] for _ in range(n_labels)]
+            forbidden_dists = [[] for _ in range(n_labels)]
+            border_sample_count = 6
+            border_distance_threshold = 0.25
+            diag_sample_count = 6
+            diag_distance_threshold = 0.25
+            for i in range(n_labels):
+                x, y = marker_positions[i]
+                # Other markers/labels
+                for ox, oy in other_positions:
+                    ddx = (ox - x) * x_scale / x_axis_length
+                    ddy = (oy - y) * y_scale / y_axis_length
+                    if ddx == 0 and ddy == 0:
+                        continue
+                    dist = np.hypot(ddx, ddy)
+                    if dist < 0.25:
+                        angle = np.arctan2(ddy, ddx)
+                        forbidden_angles[i].append(angle)
+                        forbidden_dists[i].append(dist)
+                # Borders
+                if xlim is not None and ylim is not None:
+                    for bx in [xlim[0], xlim[1]]:
+                        for by in np.linspace(ylim[0], ylim[1], border_sample_count):
+                            ddx = (bx - x) * x_scale / x_axis_length
+                            ddy = (by - y) * y_scale / y_axis_length
+                            dist = np.hypot(ddx, ddy)
+                            if dist < border_distance_threshold:
+                                angle = np.arctan2(ddy, ddx)
+                                forbidden_angles[i].append(angle)
+                                forbidden_dists[i].append(dist)
+                    for by in [ylim[0], ylim[1]]:
+                        for bx in np.linspace(xlim[0], xlim[1], border_sample_count):
+                            ddx = (bx - x) * x_scale / x_axis_length
+                            ddy = (by - y) * y_scale / y_axis_length
+                            dist = np.hypot(ddx, ddy)
+                            if dist < border_distance_threshold:
+                                angle = np.arctan2(ddy, ddx)
+                                forbidden_angles[i].append(angle)
+                                forbidden_dists[i].append(dist)
+                # Diagonal line
+                if diagonal_line and xlim is not None and ylim is not None:
+                    for t in np.linspace(0, 1, diag_sample_count):
+                        bx = xlim[0] + t * (xlim[1] - xlim[0])
+                        by = ylim[0] + t * (ylim[1] - ylim[0])
+                        ddx = (bx - x) * x_scale / x_axis_length
+                        ddy = (by - y) * y_scale / y_axis_length
+                        dist = np.hypot(ddx, ddy)
+                        if dist < diag_distance_threshold:
+                            angle = np.arctan2(ddy, ddx)
+                            forbidden_angles[i].append(angle)
+                            forbidden_dists[i].append(dist)
+                # Deduplicate forbidden angles (within 0.01 rad)
+                fa = np.array(forbidden_angles[i])
+                fd = np.array(forbidden_dists[i])
+                if fa.size > 0:
+                    unique_angles, idxs = np.unique(
+                        np.round(fa, 2), return_index=True)
+                    fa = unique_angles
+                    fd = fd[idxs]
+                forbidden_angles[i] = fa
+                forbidden_dists[i] = fd
+                print(
+                    f"Label {i}: {len(forbidden_angles[i])} forbidden angles, diagonal={diagonal_line}, angles={forbidden_angles[i]}")
+
+            # Weighted penalty function: influence decays with square of distance
+            def penalty(angle, forbidden_angles, forbidden_dists):
+                if len(forbidden_angles) == 0:
+                    return 0.0
+                sep = np.abs((angle - forbidden_angles + np.pi) %
+                             (2 * np.pi) - np.pi)
+                weights = 1.0 / (forbidden_dists ** 2 + 1e-6)
+                return np.sum(weights * np.exp(-sep**2 / 0.01))
+
+            # Objective function for differential evolution
+            def objective(angles):
+                total_penalty = 0.0
+                # Penalize forbidden angles (weighted)
+                for i in range(n_labels):
+                    total_penalty += penalty(angles[i],
+                                             forbidden_angles[i], forbidden_dists[i])
+                # Penalize label-label overlap (weighted by distance)
+                for i in range(n_labels):
+                    for j in range(i+1, n_labels):
+                        sep = np.abs(
+                            (angles[i] - angles[j] + np.pi) % (2 * np.pi) - np.pi)
+                        dist = (radii[i] + radii[j]) / 2.0
+                        weight = 1.0 / (dist ** 2 + 1e-6)
+                        total_penalty += weight * np.exp(-sep**2 / 0.01)
+                return total_penalty
+
+            bounds = [(0, 2 * np.pi) for _ in range(n_labels)]
+            # Use differential evolution for global optimization
+            result = scipy.optimize.differential_evolution(
+                objective, bounds, polish=True)
+            opt_angles = result.x
+            print(
+                f"Optimization success: {result.success}, message: {result.message}")
+            opt_positions = []
+            for i in range(n_labels):
+                x, y = marker_positions[i]
+                r = radii[i]
+                lx = x + r * np.cos(opt_angles[i]) * x_axis_length / x_scale
+                ly = y + r * np.sin(opt_angles[i]) * y_axis_length / y_scale
+                print(
+                    f"Label {i} candidate position: ({lx}, {ly}), angle={opt_angles[i]}")
+                opt_positions.append((lx, ly))
+            return opt_positions
+
+
+def circler(marker_positions, other_positions, radius, x_axis_start=0.0, y_axis_start=0.0, x_axis_end=1.0, y_axis_end=1.0,  diagonal_line=False):
+    def downscaler(points, x_min, x_max, y_min, y_max):
+        if len(points) == 0:
+            return np.array(points)
+        else:
+            points = np.array(points)
+            points[:, 0] = (points[:, 0] - x_min) / (x_max - x_min)
+            points[:, 1] = (points[:, 1] - y_min) / (y_max - y_min)
+            return points
+
+    def upscaler(points, x_min, x_max, y_min, y_max):
+        if len(points) == 0:
+            return np.array(points)
+        else:
+            points = np.array(points)
+            points[:, 0] = points[:, 0] * (x_max - x_min) + x_min
+            points[:, 1] = points[:, 1] * (y_max - y_min) + y_min
+            return points
+
+    # === Circle setup ===
+    print("Setting up circles...")
+    centers = downscaler(
+        marker_positions, x_axis_start, x_axis_end, y_axis_start, y_axis_end)
+    others = downscaler(
+        other_positions, x_axis_start, x_axis_end, y_axis_start, y_axis_end)
+    # centers = np.array(marker_positions)
+    # others = np.array(other_positions)
+    radii = np.full(len(centers), radius)
+
+    # === Extra per-point energy contribution ===
+
+    def g(point, others=others, diagonal_line=diagonal_line):
+        x, y = point
+        e = 0.0
+        point_strength = 500.0
+        for i, ((cx, cy), r) in enumerate(zip(centers, radii)):
+            d = np.linalg.norm(point - np.array([cx, cy]))
+            e += point_strength / (d**6 + 1e-9)  # repulsion from circle center
+
+        # wall repulsions
+        wall_strength = 5000.0
+        e += wall_strength / (x + 1e-9)**2
+        e += wall_strength / (1.0 - x + 1e-9)**2
+        e += wall_strength / (y + 1e-9)**4
+        e += wall_strength / (1.0 - y + 1e-9)**2
+
+        # diagonal repulsion
+        if diagonal_line:
+            diag_strength = 500.0
+            e += diag_strength / \
+                ((np.linalg.norm(np.array([x, y]) -
+                                 np.array([(x+y)/2.0, (x+y)/2.0]))**4) + 1e-9)
+
+        return e
+
+        # === Helpers ===
+
+    def get_points(thetas, centers=centers, radii=radii):
+        """Return array of [x, y] points for given angles on circles."""
+        return np.array([
+            [cx + r * np.cos(theta), cy + r * np.sin(theta)]
+            for (cx, cy), r, theta in zip(centers, radii, thetas)
+        ])
+
+    def energy(thetas, centers=centers, radii=radii):
+        points = get_points(thetas, centers, radii)
+        n = len(points)
+        e = 0.0
+
+        # Pairwise repulsion term
+        for i in range(n):
+            for j in range(i + 1, n):
+                d = np.linalg.norm(points[i] - points[j])
+                e += 1.0 / (d**2 + 1e-9)
+
+        # Independent per-point energy
+        for p in points:
+            e += g(p)
+
+        return e
+
+    def find_best_config(n_starts=20):
+        """Try multiple random starts and pick best configuration."""
+        best_result = None
+        best_energy = np.inf
+
+        for _ in range(n_starts):
+            theta0 = np.random.rand(len(centers)) * 2 * np.pi
+            res = minimize(energy, theta0, method="BFGS")
+
+            if res.fun < best_energy:
+                best_energy = res.fun
+                best_result = res
+
+        return best_result
+
+    def compute_forces(points):
+        """Compute repulsion forces on each point."""
+        n = len(points)
+        forces = np.zeros_like(points)
+
+        for i in range(n):
+            for j in range(n):
+                if i == j:
+                    continue
+                r_vec = points[i] - points[j]
+                d = np.linalg.norm(r_vec)
+                if d > 1e-9:
+                    forces[i] += r_vec / (d**3)
+        return forces
+
+        # === Plotting with heatmap ===
+
+    def plot_configuration(centers, radii, thetas):
+        points = get_points(thetas)
+        forces = compute_forces(points)
+
+        # Normalize force vectors for display
+        max_force = np.max(np.linalg.norm(forces, axis=1))
+        if max_force > 0:
+            forces = forces / max_force  # scale to unit length
+
+        fig, ax = plt.subplots(figsize=(7, 7))
+
+        # --- Background heatmap of g(x, y) ---
+        # Define grid limits
+        all_x = np.concatenate([centers[:, 0], points[:, 0]])
+        all_y = np.concatenate([centers[:, 1], points[:, 1]])
+        margin = 1.5
+        xmin, xmax = all_x.min() - margin, all_x.max() + margin
+        ymin, ymax = all_y.min() - margin, all_y.max() + margin
+
+        # Grid
+        xs = np.linspace(xmin, xmax, 200)
+        ys = np.linspace(ymin, ymax, 200)
+        X, Y = np.meshgrid(xs, ys)
+        Z = np.vectorize(lambda x, y: g([x, y]))(X, Y)
+
+        # Heatmap
+        cmap = plt.cm.viridis
+        ax.imshow(
+            Z, extent=(xmin, xmax, ymin, ymax),
+            origin="lower", cmap=cmap, alpha=0.4
+        )
+
+        # --- Circles, points, forces ---
+        for i, ((cx, cy), r, theta, p, f) in enumerate(zip(centers, radii, thetas, points, forces)):
+            # Circle outline
+            circle = plt.Circle((cx, cy), r, color="gray",
+                                fill=False, linestyle="--")
+            ax.add_artist(circle)
+
+            # Point on circle
+            ax.plot(p[0], p[1], "ro")
+            ax.text(p[0] + 0.1, p[1] + 0.1,
+                    f"P{i}", color="red")
+
+            # Circle center
+            ax.plot(cx, cy, "kx")
+
+            # Force arrow
+            ax.arrow(
+                p[0], p[1], f[0], f[1],
+                head_width=0.1, head_length=0.15,
+                fc="blue", ec="blue"
+            )
+
+        ax.set_aspect("equal", adjustable="datalim")
+        ax.set_title(
+            "Optimized circle configuration\nwith per-point potential and repulsion forces")
+        plt.show()
+
+    # === Run optimization ===
+    res = find_best_config(n_starts=30)
+
+    print("Best energy:", res.fun)
+    print("Optimal angles:", res.x)
+
+    return upscaler(get_points(res.x), x_axis_start, x_axis_end, y_axis_start, y_axis_end)
+
+    # Show final configuration
+    plot_configuration(centers, radii, res.x)
 
 
 if __name__ == "__main__":
