@@ -559,12 +559,15 @@ def main():
                     # Extend axes by 5% on each side
                     x_axis_range = x_max - x_min
                     y_axis_range = y_max - y_min
-                    x_pad = x_axis_range * 0.05
-                    y_pad = y_axis_range * 0.05
+                    x_pad = x_axis_range * 0.1
+                    y_pad = y_axis_range * 0.1
                     ax.set_xlim(x_min - x_pad, x_max + x_pad)
                     ax.set_ylim(y_min - y_pad, y_max + y_pad)
+                    # font = {'family': 'serif', 'size': 10}
+                    # ax.set_xticklabels(ax.get_xticks(), fontdict=font)
+                    # ax.set_yticklabels(ax.get_yticks(), fontdict=font)
 
-                    label_offset_percentage = 0.03  # 3% of axis range
+                    label_offset_percentage = 0.05  # 5% of axis range
                     if graph.get('diagonal', False):
                         label_offset_percentage = 0.05  # 5% of axis range
                         # Add diagonal dashed line
@@ -738,17 +741,19 @@ def main():
                 # Set axis labels
                 if x_label:
                     ax.set_xlabel(', '.join(x_label) if isinstance(
-                        x_label, list) else str(x_label))
+                        x_label, list) else str(x_label), family='serif', fontsize=14)
                 else:
-                    ax.set_xlabel(', '.join([col.name for col in x_cols]))
+                    ax.set_xlabel(
+                        ', '.join([col.name for col in x_cols]), family='serif', fontsize=14)
                 if y_label:
                     ax.set_ylabel(', '.join(y_label) if isinstance(
-                        y_label, list) else str(y_label))
+                        y_label, list) else str(y_label), family='serif', fontsize=14)
                 else:
-                    ax.set_ylabel(', '.join([col.name for col in y_cols]))
+                    ax.set_ylabel(
+                        ', '.join([col.name for col in y_cols]), family='serif', fontsize=14)
 
                 if "title" in graph and graph["title"]:
-                    ax.set_title(graph["title"])
+                    ax.set_title(graph["title"], family='serif', fontsize=16)
 
                 # fig.tight_layout()
 
@@ -1005,11 +1010,11 @@ def circler(marker_positions, other_positions, radius, x_axis_start=0.0, y_axis_
             e += point_strength / (d**6 + 1e-9)  # repulsion from circle center
 
         # wall repulsions
-        wall_strength = 5000.0
-        e += wall_strength / (x + 1e-9)**2
-        e += wall_strength / (1.0 - x + 1e-9)**2
-        e += wall_strength / (y + 1e-9)**4
-        e += wall_strength / (1.0 - y + 1e-9)**2
+        wall_strength = 500000.0
+        e += wall_strength / (x + 1e-9)
+        e += wall_strength / (1.0 - x + 1e-9)
+        e += wall_strength / (y + 1e-9)
+        e += wall_strength / (1.0 - y + 1e-9)
 
         # diagonal repulsion
         if diagonal_line:
