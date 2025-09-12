@@ -555,18 +555,34 @@ def main():
                         y_min = x_min
                         x_max = max(x_max, y_max)
                         y_max = x_max
+                        # Extend axes by 7% for better centering
+                        x_axis_range = x_max - x_min
+                        y_axis_range = y_max - y_min
+                        x_pad = x_axis_range * 0.07
+                        y_pad = y_axis_range * 0.07
+                        ax.set_xlim(x_min - x_pad, x_max + x_pad)
+                        ax.set_ylim(y_min - y_pad, y_max + y_pad)
+                        # Center tick labels and set font
 
-                    # Extend axes by 5% on each side
-                    x_axis_range = x_max - x_min
-                    y_axis_range = y_max - y_min
-                    x_pad = x_axis_range * 0.1
-                    y_pad = y_axis_range * 0.1
-                    ax.set_xlim(x_min - x_pad, x_max + x_pad)
-                    ax.set_ylim(y_min - y_pad, y_max + y_pad)
-                    # font = {'family': 'serif', 'size': 10}
-                    # ax.set_xticklabels(ax.get_xticks(), fontdict=font)
-                    # ax.set_yticklabels(ax.get_yticks(), fontdict=font)
+                        for label in ax.get_xticklabels():
+                            label.set_horizontalalignment('center')
+                        for label in ax.get_yticklabels():
+                            label.set_verticalalignment('center')
 
+                    else:
+                        # Extend axes by 5% on each side
+                        x_axis_range = x_max - x_min
+                        y_axis_range = y_max - y_min
+                        x_pad = x_axis_range * 0.1
+                        y_pad = y_axis_range * 0.1
+                        ax.set_xlim(x_min - x_pad, x_max + x_pad)
+                        ax.set_ylim(y_min - y_pad, y_max + y_pad)
+
+                    font = {'family': 'serif', 'size': 10}
+                    ax.set_xticklabels(
+                        [f"{tick:g}" for tick in ax.get_xticks()], fontdict=font)
+                    ax.set_yticklabels(
+                        [f"{tick:g}" for tick in ax.get_yticks()], fontdict=font)
                     label_offset_percentage = 0.05  # 5% of axis range
                     if graph.get('diagonal', False):
                         label_offset_percentage = 0.05  # 5% of axis range
