@@ -127,7 +127,19 @@ class YAMLFile:
                             Optional("title"): Str(),
                             Optional("dpi"): Int(),
                             Optional("figsize"): Seq(Int()),
-                            Optional("diagonal"): Bool()
+                            Optional("diagonal"): Bool(),
+                            Optional("marker_map"): MapPattern(Str(), Map({
+                                "marker": Str(),
+                                Optional("label"): Str()
+                            })),
+                            Optional("column_marker_map"): MapPattern(Str(), Map({
+                                "marker": Str(),
+                                Optional("label"): Str()
+                            })),
+                            Optional("name_column_marker_map"): MapPattern(Str(), MapPattern(Str(), Map({
+                                "marker": Str(),
+                                Optional("label"): Str()
+                            }))),
                         })
                     ),
                     Optional("file"): Seq(

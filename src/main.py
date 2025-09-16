@@ -28,86 +28,9 @@ def prepend_root_if_relative(file_path, root_path=None):
     file_path = Path(file_path)
     if file_path.is_absolute() or root_path is None:
         return file_path
-    else:
-        return Path(root_path) / file_path
 
-
-def prepend_root_if_relative_and_glob(file_path, root_path=None):
-    """
-    Prepend `root_path` to `file_path` if `file_path` is not absolute.
-    Returns a Path object.
-    """
-    file_path = Path(file_path)
-    if file_path.is_absolute() or root_path is None:
-        raise NotImplementedError(
-            "Globbing not supported for absolute paths yet")
-    else:
-        pattern = str(file_path)  # ensure it's a string
-        print(str(list(p.resolve() for p in Path(root_path).glob(pattern))))
-        return [p.resolve() for p in Path(root_path).glob(pattern)]
-
-
-def main():
-
-    testyaml = """
-  name: Procedure Name
-  comment: XYZ
-  version: 111
-  files:
-    - path: "../benzene.xyz"
-      type: xyz
-      name: benz
-    - path: "../benzene.xyz"
-      type: xyz
-      name: gurk
-    - path: "../benzene.xyz"
-      type: xyz
-      name: abcd
-  substitutions:
-    - name: S1
-      entries:
-      - file: benz
-        atom_index: 5
-      - file: benz2
-        atom_index: 4
-      - file: benz3
-        atom_index: 1
-  measurements:
-    distance:
-      - name: O-H-bond
-        a: 6
-        b: 7
-      - name: Subs-bond
-        a: S1
-        b: 10
-    angle:
-      - name: H-O-H
-        a: 3
-        b: 6
-        c: 7
-      - name: H-O-N
-        a: 8
-        b: 9
-        c: 10
-    dihedral:
-      - name: torsion1
-        a: 2
-        b: 3
-        c: 6
-        d: 7
-  output:
-    - file:
-      - path: ../out.csv
-        type: csv
-    - graph:
-      - type: scatter_plot
-        x: distance-Subs-bond
-        y: angle-H-O-N
-        file: ../SB-HON.tiff
-  """
-
-    # Example usage
-    try:
+    def main():
+        # Example usage
         parser = argparse.ArgumentParser()
         parser.add_argument("inputfile", help="Main command input file")
 
@@ -120,19 +43,100 @@ def main():
 
         args = parser.parse_args()
 
-        if args.root_path is None:
-            # print((Path.cwd() / args.inputfile).resolve().parent )
-            args.root_path = (Path.cwd() / args.inputfile).resolve().parent
+        # testyaml = """
+        #   name: Procedure Name
+        #   comment: XYZ
+        #   version: 111
+        #   files:
+        #     - path: "../benzene.xyz"
+        #       type: xyz
+        #       name: benz
+        #     - path: "../benzene.xyz"
+        #       type: xyz
+        #       name: gurk
+        #     - path: "../benzene.xyz"
+        #       type: xyz
+        #       name: abcd
+        #   substitutions:
+        #     - name: S1
+        #       entries:
+        #       - file: benz
+        #         atom_index: 5
+        #       - file: benz2
+        #         atom_index: 4
+        #       - file: benz3
+        #         atom_index: 1
+        #   measurements:
+        #     distance:
+        #       - name: O-H-bond
+        #         a: 6
+        #         b: 7
+        #       - name: Subs-bond
+        #         a: S1
+        #         b: 10
+        #     angle:
+        #       - name: H-O-H
+        #         a: 3
+        #         b: 6
+        #         c: 7
+        #       - name: H-O-N
+        #         a: 8
+        #         b: 9
+        #         c: 10
+        #     dihedral:
+        #       - name: torsion1
+        #         a: 2
+        #         b: 3
+        #         c: 6
+        #         d: 7
+        #   output:
+        #     - file:
+        #       - path: ../out.csv
+        #         type: csv
+        #     - graph:
+        #       - type: scatter_plot
+        #         x: distance-Subs-bond
+        #         y: angle-H-O-N
+        #         file: ../SB-HON.tiff
+        #         marker_map:
+        #           benz: { marker: "^", label: "Benzene" }
+        #           gurk: { marker: "s", label: "Gurk" }
+        #         column_marker_map:
+        #           distance-Subs-bond: { marker: "o", label: "Sub Bond" }
+        #           angle-H-O-N: { marker: "*", label: "HON Angle" }
+        # """
+                marker_map:
+                    benz: {marker: "^", label: "Benzene"}
+                    gurk: {marker: "s", label: "Gurk"}
+                column_marker_map:
+                    distance-Subs-bond: {marker: "o", label: "Sub Bond"}
+                    angle-H-O-N: {marker: "*", label: "HON Angle"}
+    """
 
-        print(args.root_path)
-        yamlparser = yr.YAMLFile()
-        # yamlparser.load_string(testyaml)
-        # prepend_root_if_relative(file_path=args.inputfile, root_path=args.root_path))
-        yamlparser.load_file(prepend_root_if_relative(
-            file_path=args.inputfile, root_path=args.root_path))
-        # validate_measurements(data)
-    except (sy.YAMLError, ValueError) as e:
-        print(f"Validation error: {e}")
+    # Example usage
+    parser = argparse.ArgumentParser()
+    parser.add_argument("inputfile", help="Main command input file")
+
+    # Add -rp / --root-path argument (single allowed — default behavior)
+    parser.add_argument(
+        "-rp", "--root_path",
+        type=str,
+        help="Root path used for all files. If none is specified, the location of the input file is used as root path"
+    )
+
+    args = parser.parse_args()
+
+    if args.root_path is None:
+        # print((Path.cwd() / args.inputfile).resolve().parent )
+        args.root_path = (Path.cwd() / args.inputfile).resolve().parent
+
+    print(args.root_path)
+    yamlparser = yr.YAMLFile()
+    # yamlparser.load_string(testyaml)
+    # prepend_root_if_relative(file_path=args.inputfile, root_path=args.root_path))
+    yamlparser.load_file(prepend_root_if_relative(
+        file_path=args.inputfile, root_path=args.root_path))
+    # validate_measurements(data)
 
     atom_data = AtomData()
     frame_data = FrameData()
@@ -610,7 +614,15 @@ def main():
                     # Plot each file_name as a separate series with its marker
                     for fname in unique_files:
                         subdf = df[df["file_name"] == fname]
-                        marker = file_marker_map[fname]
+                        # Use marker_map, column_marker_map, and name_column_marker_map if provided
+                        marker_map = graph.get('marker_map', {})
+                        column_marker_map = graph.get('column_marker_map', {})
+                        name_column_marker_map = graph.get(
+                            'name_column_marker_map', {})
+                        marker = marker_map.get(fname, {}).get(
+                            'marker', file_marker_map[fname])
+                        label_override = marker_map.get(
+                            fname, {}).get('label', None)
                         fillstyle = marker_fillstyles.get(marker, 'full')
                         label_bboxes = []  # Store bounding boxes of placed labels
                         group_threshold = 0.20  # threshold for grouping close markers
@@ -629,7 +641,30 @@ def main():
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
                                 y = row[ycol.name]
-                                label_text = str(row[series_by])
+                                # Use label override from marker_map or column_marker_map if present
+                                label_text = label_override if label_override is not None else str(
+                                    row[series_by])
+                                col_keys = [xcol.name, ycol.name]
+                                # Check name_column_marker_map first
+                                ncmm = name_column_marker_map.get(fname, {})
+                                found_ncmm = False
+                                for col_key in col_keys:
+                                    if col_key in ncmm:
+                                        marker = ncmm[col_key].get(
+                                            'marker', marker)
+                                        label_text = ncmm[col_key].get(
+                                            'label', label_text)
+                                        found_ncmm = True
+                                        break
+                                # If not found in ncmm, check column_marker_map
+                                if not found_ncmm:
+                                    for col_key in col_keys:
+                                        if col_key in column_marker_map:
+                                            marker = column_marker_map[col_key].get(
+                                                'marker', marker)
+                                            label_text = column_marker_map[col_key].get(
+                                                'label', label_text)
+                                            break
                                 x_offset = x + label_offset_data
                                 y_offset = y
                                 all_label_positions.append(
@@ -793,11 +828,8 @@ def main():
 
 
 def prune_close_positions(positions, threshold, x_scale=1.0, y_scale=1.0):
-    """
-    Given a list of positions [(x1, y1), (x2, y2), ...] and a threshold,
-    return a new list where positions closer than the threshold are grouped
-    and replaced by their centroid.
-    """
+    # Given a list of positions [(x1, y1), (x2, y2), ...] and a threshold,
+    # return a new list where positions closer than the threshold are grouped and replaced by their centroid.
 
     positions = np.array(positions)
     used = np.ones(len(positions), dtype=bool)
@@ -816,25 +848,37 @@ def prune_close_positions(positions, threshold, x_scale=1.0, y_scale=1.0):
     return used
 
 
+def circler(marker_positions, other_positions, radius, x_axis_start=0.0, y_axis_start=0.0, x_axis_end=1.0, y_axis_end=1.0,  diagonal_line=False):
+    def downscaler(points, x_min, x_max, y_min, y_max):
+        if len(points) == 0:
+            return np.array(points)
+        else:
+            points = np.array(points)
+            points[:, 0] = (points[:, 0] - x_min) / (x_max - x_min)
+            points[:, 1] = (points[:, 1] - y_min) / (y_max - y_min)
+            return points
+
+    def upscaler(points, x_min, x_max, y_min, y_max):
+        if len(points) == 0:
+            return np.array(points)
+        else:
+            points = np.array(points)
+            points[:, 0] = points[:, 0] * (x_max - x_min) + x_min
+            points[:, 1] = points[:, 1] * (y_max - y_min) + y_min
+            return points
+
+    # === Circle setup ===
+    print("Setting up circles...")
+    centers = downscaler(
+        marker_positions, x_axis_start, x_axis_end, y_axis_start, y_axis_end)
+    others = downscaler(
+        other_positions, x_axis_start, x_axis_end, y_axis_start, y_axis_end)
+    # centers = np.array(marker_positions)
+    # others = np.array(other_positions)
+    radii = np.full(len(centers), radius)
+    # ...existing code for circler...
 def find_optimal_label_positions(marker_positions, initial_label_positions, other_positions, x_axis_length=1.0, y_axis_length=1.0, x_scale=1.0, y_scale=1.0, xlim=None, ylim=None, diagonal_line=False):
-    """
-    Optimize label positions around markers to avoid overlaps and forbidden regions.
-
-    Parameters:
-        marker_positions (list of tuple): List of (x, y) positions for each marker.
-        initial_label_positions (list of tuple): Initial (x, y) positions for each label.
-        other_positions (list of tuple): Positions of other markers and labels to avoid.
-        x_axis_length (float): Length of the x-axis for scaling.
-        y_axis_length (float): Length of the y-axis for scaling.
-        x_scale (float): Scale factor for x-axis.
-        y_scale (float): Scale factor for y-axis.
-        xlim (tuple): Limits of the x-axis as (min, max).
-        ylim (tuple): Limits of the y-axis as (min, max).
-        diagonal_line (bool): Whether to avoid the diagonal line region.
-
-    Returns:
-        list of tuple: Optimized (x, y) positions for each label.
-    """
+    # Optimize label positions around markers to avoid overlaps and forbidden regions.
     n_labels = len(marker_positions)
 
     def pos_to_angle(marker, label):
@@ -844,7 +888,7 @@ def find_optimal_label_positions(marker_positions, initial_label_positions, othe
     initial_angles = np.array([pos_to_angle(
         marker_positions[i], initial_label_positions[i]) for i in range(n_labels)])
     radii = np.array([np.hypot((initial_label_positions[i][0] - marker_positions[i][0]) * x_scale / x_axis_length,
-                               (initial_label_positions[i][1] - marker_positions[i][1]) * y_scale / y_axis_length) for i in range(n_labels)])
+                               (initial_label_positions[i][1] - markerPositions[i][1]) * y_scale / y_axis_length) for i in range(n_labels)])
     MIN_RADIUS = 0.1
     radii[radii == 0] = MIN_RADIUS
     forbidden_angles = [[] for _ in range(n_labels)]
@@ -871,8 +915,8 @@ def find_optimal_label_positions(marker_positions, initial_label_positions, othe
 
             initial_angles = np.array([pos_to_angle(
                 marker_positions[i], initial_label_positions[i]) for i in range(n_labels)])
-            radii = np.array([np.hypot((initial_label_positions[i][0] - marker_positions[i][0]) * x_scale / x_axis_length,
-                                       (initial_label_positions[i][1] - marker_positions[i][1]) * y_scale / y_axis_length) for i in range(n_labels)])
+            radii = np.array([np.hypot((initial_label_positions[i][0] - markerPositions[i][0]) * x_scale / x_axis_length,
+                                       (initial_label_positions[i][1] - markerPositions[i][1]) * y_scale / y_axis_length) for i in range(n_labels)])
             MIN_RADIUS = 0.1
             radii[radii == 0] = MIN_RADIUS
 
@@ -987,6 +1031,7 @@ def find_optimal_label_positions(marker_positions, initial_label_positions, othe
 
 
 def circler(marker_positions, other_positions, radius, x_axis_start=0.0, y_axis_start=0.0, x_axis_end=1.0, y_axis_end=1.0,  diagonal_line=False):
+    # Helper: scale points to [0,1] range
     def downscaler(points, x_min, x_max, y_min, y_max):
         if len(points) == 0:
             return np.array(points)
@@ -996,6 +1041,7 @@ def circler(marker_positions, other_positions, radius, x_axis_start=0.0, y_axis_
             points[:, 1] = (points[:, 1] - y_min) / (y_max - y_min)
             return points
 
+    # Helper: scale points back to original range
     def upscaler(points, x_min, x_max, y_min, y_max):
         if len(points) == 0:
             return np.array(points)
@@ -1044,7 +1090,7 @@ def circler(marker_positions, other_positions, radius, x_axis_start=0.0, y_axis_
         # === Helpers ===
 
     def get_points(thetas, centers=centers, radii=radii):
-        """Return array of [x, y] points for given angles on circles."""
+        """Return array of[x, y] points for given angles on circles."""
         return np.array([
             [cx + r * np.cos(theta), cy + r * np.sin(theta)]
             for (cx, cy), r, theta in zip(centers, radii, thetas)
