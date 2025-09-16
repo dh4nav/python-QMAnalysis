@@ -155,11 +155,39 @@ def main():
     for file in yamldata["files"]:
         ftype = file["type"].lower()
         if ftype == "xyz":
-            xr.XYZFile(atom_data, frame_data, file_path=prepend_root_if_relative(
-                file_path=file["path"], root_path=args.root_path), file_name=file["name"], timestep_name=file.get("timestep", None))
+            if "glob" in file and file["glob"]:
+                from glob import glob
+                import os
+                globbed_files = list(
+                    glob(str(prepend_root_if_relative(file["path"], args.root_path))))
+                if len(globbed_files) == 1:
+                    xr.XYZFile(atom_data, frame_data, file_path=globbed_files[0],
+                               file_name=file["name"], timestep_name=file.get("timestep", None))
+                else:
+                    for gfile in globbed_files:
+                        xr.XYZFile(atom_data, frame_data, file_path=gfile,
+                                   file_name=file["name"]+os.path.splitext(os.path.basename(gfile))[0], timestep_name=file.get("timestep", None))
+            else:
+                xr.XYZFile(atom_data, frame_data, file_path=prepend_root_if_relative(
+                    file_path=file["path"], root_path=args.root_path), file_name=file["name"], timestep_name=file.get("timestep", None))
         elif ftype == "gaussian_out":
-            GaussianOutFile(atom_data, frame_data, file_path=prepend_root_if_relative(
-                file_path=file["path"], root_path=args.root_path), file_name=file.get("name", None), timestep_name=file.get("timestep", None))
+            if "glob" in file and file["glob"]:
+                from glob import glob
+                import os
+                globbed_files = list(
+                    glob(str(prepend_root_if_relative(file["path"], args.root_path))))
+                if len(globbed_files) == 1:
+                    GaussianOutFile(atom_data, frame_data, file_path=globbed_files[0],
+                                    file_name=file.get("name", None), timestep_name=file.get("timestep", None))
+                else:
+                    for gfile in globbed_files:
+                        GaussianOutFile(atom_data, frame_data, file_path=gfile,
+                                        file_name=(
+                                            file.get("name", "") or "")+os.path.splitext(os.path.basename(gfile))[0],
+                                        timestep_name=file.get("timestep", None))
+            else:
+                GaussianOutFile(atom_data, frame_data, file_path=prepend_root_if_relative(
+                    file_path=file["path"], root_path=args.root_path), file_name=file.get("name", None), timestep_name=file.get("timestep", None))
         elif ftype == "global_constants_csv":
             global_constants = GlobalConstantsFile(
                 file_path=prepend_root_if_relative(file["path"], root_path=args.root_path))
