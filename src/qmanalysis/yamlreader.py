@@ -38,6 +38,7 @@ class YAMLFile:
             "name": Str(),
             "comment": Str(),
             "version": Int(),
+            Optional("ping"): Bool(),
 
             "files": Seq(
                 Map({
