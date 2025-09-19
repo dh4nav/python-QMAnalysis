@@ -512,15 +512,15 @@ def main():
                         [f"{tick:g}" for tick in ax.get_xticks()], fontdict=font)
                     ax.set_yticklabels(
                         [f"{tick:g}" for tick in ax.get_yticks()], fontdict=font)
-                    label_offset_percentage = 0.05
+                    label_offset_percentage = 0.04
                     if graph.get('diagonal', False):
-                        label_offset_percentage = 0.05
+                        label_offset_percentage = 0.04
                         ax.plot([x_min - x_pad, x_max + x_pad], [y_min - y_pad,
                                 y_max + y_pad], linestyle='--', color='gray', linewidth=1)
                     marker_symbols = ['x', '.', '+', '1', '2', '3',
-                                      '4', '^', 'v', '<', '>', 'd', 's', 'p', '|', '_']
+                                      '4', '^', 'v', '<', '>', 'd', 's', 'p', '|', '_', '*', 'o']
                     marker_fillstyles = {'^': 'none', 'v': 'none', '<': 'none', '>': 'none', 'd': 'none', 's': 'none', 'p': 'none',
-                                         'x': 'full', '+': 'full', '|': 'full', '_': 'full', '1': 'full', '2': 'full', '3': 'full', '4': 'full', '.': 'none'}
+                                         'x': 'full', '+': 'full', '|': 'full', '_': 'full', '1': 'full', '2': 'full', '3': 'full', '4': 'full', '.': 'none', '*': 'none', 'o': 'none'}
                     unique_files = df["file_name"].unique()
                     file_marker_map = {fname: marker_symbols[i % len(
                         marker_symbols)] for i, fname in enumerate(unique_files)}
@@ -530,13 +530,13 @@ def main():
                         marker_map = graph.get('marker_map', {})
                         column_marker_map = graph.get('column_marker_map', {})
                         name_column_marker_map = graph.get(
-                            'name_column_marker_map', {})
+                            'name_column_marker_map', [])
                         marker_base = marker_map.get(fname, {}).get(
                             'marker', file_marker_map[fname])
                         label_override = marker_map.get(
                             fname, {}).get('label', None)
                         fillstyle = marker_fillstyles.get(marker_base, 'full')
-                        group_threshold = 0.20
+                        group_threshold = 0.05
                         label_offset_data = x_axis_range * label_offset_percentage
                         label_stack_offset = x_axis_range * label_offset_percentage
                         all_marker_positions = [(row[xcol.name], row[ycol.name]) for i, (xcol, ycol) in enumerate(
@@ -549,35 +549,42 @@ def main():
                             for idx, row in subdf.iterrows():
                                 x = row[xcol.name]
                                 y = row[ycol.name]
+                                x_offset = x + label_offset_data
+                                y_offset = y
                                 label_text = label_override if label_override is not None else str(
                                     row[series_by])
                                 marker = marker_base
                                 col_keys = [xcol.name, ycol.name]
-                                ncmm = name_column_marker_map.get(fname, {})
-                                found_ncmm = False
+                                marker_and_label_written = False
                                 for col_key in col_keys:
-                                    if col_key in ncmm:
-                                        marker = ncmm[col_key].get(
-                                            'marker', marker)
-                                        label_text = ncmm[col_key].get(
-                                            'label', label_text)
-                                        found_ncmm = True
-                                        break
-                                if not found_ncmm:
-                                    for col_key in col_keys:
-                                        if col_key in column_marker_map:
-                                            marker = column_marker_map[col_key].get(
-                                                'marker', marker)
-                                            label_text = column_marker_map[col_key].get(
-                                                'label', label_text)
+                                    marker_and_label_written = False
+                                    for ncm in name_column_marker_map:
+                                        if (fname in ncm.get('name', [])) and (col_key in ncm.get('columns', [])):
+                                            if 'labeladd' in ncm['substitution']:
+                                                label_texts.append(
+                                                    label_text + ncm['substitution']['labeladd'])
+                                            else:
+                                                label_texts.append(
+                                                    ncm['substitution'].get('label', label_text))
+                                            marker_list.append(
+                                                ncm['substitution'].get('marker', marker))
+                                            marker_and_label_written = True
                                             break
-                                x_offset = x + label_offset_data
-                                y_offset = y
+                                    if not marker_and_label_written and col_key in column_marker_map:
+                                        if col_key in column_marker_map:
+                                            label_texts.append(
+                                                column_marker_map[col_key].get('label', label_text))
+                                            marker_list.append(
+                                                column_marker_map[col_key].get('marker', marker))
+                                            marker_and_label_written = True
+                                            break
+                                if not marker_and_label_written:
+                                    label_texts.append(label_text)
+                                    marker_list.append(marker)
                                 all_label_positions.append(
                                     (x_offset, y_offset))
-                                label_texts.append(label_text)
-                                marker_list.append(marker)
                                 label_marker_indices.append((x, y))
+
                         used_positions = prune_close_positions(
                             all_marker_positions, group_threshold, x_axis_range, y_axis_range)
                         for i, pos in enumerate(used_positions):

@@ -137,10 +137,17 @@ class YAMLFile:
                                 "marker": Str(),
                                 Optional("label"): Str()
                             })),
-                            Optional("name_column_marker_map"): MapPattern(Str(), MapPattern(Str(), Map({
-                                "marker": Str(),
-                                Optional("label"): Str()
-                            }))),
+                            Optional("name_column_marker_map"): Seq(
+                                Map({
+                                    "name": Str() | Seq(Str()),
+                                    "columns": Str() | Seq(Str()),
+                                    "substitution": Map({
+                                        "marker": Str(),
+                                        Optional("label"): Str(),
+                                        Optional("labeladd"): Str()
+                                    })
+                                })
+                            ),
                         })
                     ),
                     Optional("file"): Seq(
