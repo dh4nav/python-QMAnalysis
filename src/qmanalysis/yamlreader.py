@@ -129,6 +129,34 @@ class YAMLFile:
                             Optional("dpi"): Int(),
                             Optional("figsize"): Seq(Int()),
                             Optional("diagonal"): Bool(),
+                            Optional("font"): Map({
+                                Optional("family"): Str(),
+                                Optional("size"): Int()
+                            }),
+                            Optional("titlefont"): Map({
+                                Optional("family"): Str(),
+                                Optional("size"): Int()
+                            }),
+                            Optional("xlabelfont"): Map({
+                                Optional("family"): Str(),
+                                Optional("size"): Int()
+                            }),
+                            Optional("xticksfont"): Map({
+                                Optional("family"): Str(),
+                                Optional("size"): Int()
+                            }),
+                            Optional("ylabelfont"): Map({
+                                Optional("family"): Str(),
+                                Optional("size"): Int()
+                            }),
+                            Optional("yticksfont"): Map({
+                                Optional("family"): Str(),
+                                Optional("size"): Int()
+                            }),
+                            Optional("labelfont"): Map({
+                                Optional("family"): Str(),
+                                Optional("size"): Int()
+                            }),
                             Optional("marker_map"): MapPattern(Str(), Map({
                                 "marker": Str(),
                                 Optional("label"): Str()
@@ -163,36 +191,36 @@ class YAMLFile:
 
         })
 
-    # def _validate_measurements(self):
-    #     data = self.data
-    #     defined_subs = {}
-    #     defined_atoms = set()
+        # def _validate_measurements(self):
+        #     data = self.data
+        #     defined_subs = {}
+        #     defined_atoms = set()
 
-    #     for item in data.get("substitutions", []):
-    #         for key, entries in item.items():
-    #             defined_subs[key] = {entry["atom"] for entry in entries}
-    #             defined_atoms.update(defined_subs[key])
+        #     for item in data.get("substitutions", []):
+        #         for key, entries in item.items():
+        #             defined_subs[key] = {entry["atom"] for entry in entries}
+        #             defined_atoms.update(defined_subs[key])
 
-    #     def is_valid_identifier(x):
-    #         return isinstance(x, int) and x in defined_atoms or isinstance(x, str) and x in defined_subs
+        #     def is_valid_identifier(x):
+        #         return isinstance(x, int) and x in defined_atoms or isinstance(x, str) and x in defined_subs
 
-    #     def assert_unique_ids(measure, keys):
-    #         values = [measure[k] for k in keys]
-    #         if len(set(values)) != len(values):
-    #             raise ValueError(
-    #                 f"[{measure['name']}] has duplicate identifiers: {values}"
-    #             )
+        #     def assert_unique_ids(measure, keys):
+        #         values = [measure[k] for k in keys]
+        #         if len(set(values)) != len(values):
+        #             raise ValueError(
+        #                 f"[{measure['name']}] has duplicate identifiers: {values}"
+        #             )
 
-    #     if "measurements" in data:
-    #         for kind, keys in {
-    #             "distance": ["a", "b"],
-    #             "angle": ["a", "b", "c"],
-    #             "dihedral": ["a", "b", "c", "d"]
-    #         }.items():
-    #             for m in data["measurements"].get(kind, []):
-    #                 for k in keys:
-    #                     if not is_valid_identifier(m[k]):
-    #                         raise ValueError(
-    #                             f"[{m['name']}] {kind}: '{m[k]}' is not a valid atom or substitution reference."
-    #                         )
-    #                 assert_unique_ids(m, keys)
+        #     if "measurements" in data:
+        #         for kind, keys in {
+        #             "distance": ["a", "b"],
+        #             "angle": ["a", "b", "c"],
+        #             "dihedral": ["a", "b", "c", "d"]
+        #         }.items():
+        #             for m in data["measurements"].get(kind, []):
+        #                 for k in keys:
+        #                     if not is_valid_identifier(m[k]):
+        #                         raise ValueError(
+        #                             f"[{m['name']}] {kind}: '{m[k]}' is not a valid atom or substitution reference."
+        #                         )
+        #                 assert_unique_ids(m, keys)

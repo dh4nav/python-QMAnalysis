@@ -507,14 +507,13 @@ def main():
                         y_pad = y_axis_range * 0.1
                         ax.set_xlim(x_min - x_pad, x_max + x_pad)
                         ax.set_ylim(y_min - y_pad, y_max + y_pad)
-                    font = {'family': 'serif', 'size': 10}
                     ax.set_xticklabels(
-                        [f"{tick:g}" for tick in ax.get_xticks()], fontdict=font)
+                        [f"{tick:g}" for tick in ax.get_xticks()], fontdict={'family': graph.get('xticksfont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('xticksfont', graph.get('font', {'size': 9})).get('size', 9)})
                     ax.set_yticklabels(
-                        [f"{tick:g}" for tick in ax.get_yticks()], fontdict=font)
-                    label_offset_percentage = 0.04
+                        [f"{tick:g}" for tick in ax.get_yticks()], fontdict={'family': graph.get('yticksfont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('yticksfont', graph.get('font', {'size': 9})).get('size', 9)})
+                    label_offset_percentage = 0.045
                     if graph.get('diagonal', False):
-                        label_offset_percentage = 0.04
+                        label_offset_percentage = 0.045
                         ax.plot([x_min - x_pad, x_max + x_pad], [y_min - y_pad,
                                 y_max + y_pad], linestyle='--', color='gray', linewidth=1)
                     marker_symbols = ['x', '.', '+', '1', '2', '3',
@@ -639,26 +638,26 @@ def main():
                             print(
                                 f'Placing label: {label_text} at {x_opt}, {y_opt}')
                             text_obj = ax.text(
-                                x_opt, y_opt, label_text, fontsize=8, va='center', ha='center')
+                                x_opt, y_opt, label_text, fontdict={'family': graph.get('labelfont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('labelfont', graph.get('font', {'size': 8})).get('size', 8)}, va='center', ha='center')
                             print(f'text object: {text_obj}')
                             plt.draw()
                             bbox = text_obj.get_window_extent(
                                 renderer=fig.canvas.get_renderer())
                     if x_label:
                         ax.set_xlabel(', '.join(x_label) if isinstance(
-                            x_label, list) else str(x_label), family='serif', fontsize=14)
+                            x_label, list) else str(x_label), fontdict={'family': graph.get('xlabelfont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('xlabelfont', graph.get('font', {'size': 11})).get('size', 11)})
                     else:
                         ax.set_xlabel(
-                            ', '.join([col.name for col in x_cols]), family='serif', fontsize=14)
+                            ', '.join([col.name for col in x_cols]), fontdict={'family': graph.get('xlabelfont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('xlabelfont', graph.get('font', {'size': 11})).get('size', 11)})
                     if y_label:
                         ax.set_ylabel(', '.join(y_label) if isinstance(
-                            y_label, list) else str(y_label), family='serif', fontsize=14)
+                            y_label, list) else str(y_label), fontdict={'family': graph.get('ylabelfont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('ylabelfont', graph.get('font', {'size': 11})).get('size', 11)})
                     else:
                         ax.set_ylabel(
-                            ', '.join([col.name for col in y_cols]), family='serif', fontsize=14)
+                            ', '.join([col.name for col in y_cols]), fontdict={'family': graph.get('ylabelfont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('ylabelfont', graph.get('font', {'size': 11})).get('size', 11)})
                     if "title" in graph and graph["title"]:
                         ax.set_title(graph["title"],
-                                     family='serif', fontsize=16)
+                                     fontdict={'family': graph.get('titlefont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('titlefont', graph.get('font', {'size': 12})).get('size', 12)})
                     file_base = prepend_root_if_relative(
                         file_path=graph['file'], root_path=args.root_path)
                     file_formats = graph.get("file_format", "tiff")
