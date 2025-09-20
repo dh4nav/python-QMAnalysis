@@ -18,6 +18,7 @@ from scipy.optimize import minimize
 
 import qmanalysis.customcalculationrunner as ccr
 from qmanalysis.gaussianoutreader import GaussianOutFile
+from tests.test_customcalculationrunner import frame_data
 
 
 def prepend_root_if_relative(file_path, root_path=None):
@@ -207,14 +208,35 @@ def main():
             else:
                 GaussianOutFile(atom_data, frame_data, file_path=prepend_root_if_relative(
                     file_path=file["path"], root_path=args.root_path), file_name=file.get("name", None), timestep_name=file.get("timestep", None))
+
         elif ftype == "global_constants_csv":
-            global_constants = GlobalConstantsFile(
-                file_path=prepend_root_if_relative(file["path"], root_path=args.root_path))
+            # Try to read from data directory first, then fallback to program directory
+            global_constants_csv_file = prepend_root_if_relative(
+                file["path"], root_path=args.root_path)
+            if not Path(global_constants_csv_file).exists():
+                global_constants_csv_file = Path(file["path"])
+                if not global_constants_csv_file.exists():
+                    raise FileNotFoundError(
+                        f"global_constants_csv not found in data or program directory: {file['path']}")
+
+            global_constants_df = pd.read_csv(global_constants_csv_file)
+            for _, row in global_constants_df.iterrows():
+                col_name = row['name']
+                col_value = row['value']
+                frame_data.dataframe[col_name] = col_value
+
         elif ftype == "per_file_constants_csv":
-            per_file_constants = pd.read_csv(prepend_root_if_relative(
-                file["path"], root_path=args.root_path))
+            # Try to read from data directory first, then fallback to program directory
+            frame_constants_csv_file = prepend_root_if_relative(
+                file["path"], root_path=args.root_path)
+            if not Path(frame_constants_csv_file).exists():
+                frame_constants_csv_file = Path(file["path"])
+                if not Path(frame_constants_csv_file).exists():
+                    raise FileNotFoundError(
+                        f"per_file_constants_csv not found in data or program directory: {file['path']}")
+            frame_constants_df = pd.read_csv(frame_constants_csv_file)
             frame_data.dataframe = frame_data.dataframe.join(
-                per_file_constants.set_index('file_name'), on='file_name', rsuffix='_perfile')
+                frame_constants_df.set_index('file_name'), on='file_name', rsuffix='_perfile')
 
     # Substitutions
     if "substitutions" in yamldata:
@@ -258,52 +280,52 @@ def main():
                         [True] * len(atom_data.dataframe), index=atom_data.dataframe.index)
                 atom_data.dataframe.loc[final_mask, "alias"] = sub["name"]
 
-    # Global constants
-    global_constants_csv_file = next(
-        (f for f in yamldata.get("files", []) if f.get(
-            "type", "").lower() == "global_constants_csv"), None
-    )
-    if global_constants_csv_file:
-        csv_path = prepend_root_if_relative(
-            file_path=global_constants_csv_file["path"], root_path=args.root_path
-        )
-        name_value_df = pd.read_csv(csv_path)
-        for _, row in name_value_df.iterrows():
-            col_name = row['name']
-            col_value = row['value']
-            frame_data.dataframe[col_name] = col_value
+    # # Global constants
+    # global_constants_csv_file = next(
+    #     (f for f in yamldata.get("files", []) if f.get(
+    #         "type", "").lower() == "global_constants_csv"), None
+    # )
+    # if global_constants_csv_file:
+    #     csv_path = prepend_root_if_relative(
+    #         file_path=global_constants_csv_file["path"], root_path=args.root_path
+    #     )
+    #     name_value_df = pd.read_csv(csv_path)
+    #     for _, row in name_value_df.iterrows():
+    #         col_name = row['name']
+    #         col_value = row['value']
+    #         frame_data.dataframe[col_name] = col_value
 
     # Frame constants
-    frame_constants_csv_files = [
-        f for f in yamldata.get("files", []) if f.get("type", "").lower() == "frame_constants_csv"
-    ]
-    for frame_constants_csv_file in frame_constants_csv_files:
-        csv_path = prepend_root_if_relative(
-            file_path=frame_constants_csv_file["path"], root_path=args.root_path
-        )
-        frame_constants_df = pd.read_csv(csv_path)
-        label_cols = [col for col in frame_constants_df.columns if col in [
-            "file_name", "file_path", "timestep_name"]]
-        value_cols = [
-            col for col in frame_constants_df.columns if col not in label_cols]
-        for _, row in frame_constants_df.iterrows():
-            mask = pd.Series([True] * len(frame_data.dataframe),
-                             index=frame_data.dataframe.index)
-            for label in label_cols:
-                val = row[label]
-                if pd.isna(val):
-                    continue
-                idx_vals = frame_data.dataframe.index.get_level_values(label)
-                if any(char in str(val) for char in ['*', '?', '[']):
-                    mask &= [fnmatch.fnmatch(str(idx_val), str(val))
-                             for idx_val in idx_vals]
-                else:
-                    mask &= [str(idx_val) == str(val) for idx_val in idx_vals]
-            for value_col in value_cols:
-                frame_data.dataframe.loc[mask, value_col] = row[value_col]
-        for value_col in value_cols:
-            if value_col not in frame_data.dataframe.columns:
-                frame_data.dataframe[value_col] = pd.NA
+    # frame_constants_csv_files = [
+    #     f for f in yamldata.get("files", []) if f.get("type", "").lower() == "frame_constants_csv"
+    # ]
+    # for frame_constants_csv_file in frame_constants_csv_files:
+    #     csv_path = prepend_root_if_relative(
+    #         file_path=frame_constants_csv_file["path"], root_path=args.root_path
+    #     )
+    #     frame_constants_df = pd.read_csv(csv_path)
+    #     label_cols = [col for col in frame_constants_df.columns if col in [
+    #         "file_name", "file_path", "timestep_name"]]
+    #     value_cols = [
+    #         col for col in frame_constants_df.columns if col not in label_cols]
+    #     for _, row in frame_constants_df.iterrows():
+    #         mask = pd.Series([True] * len(frame_data.dataframe),
+    #                          index=frame_data.dataframe.index)
+    #         for label in label_cols:
+    #             val = row[label]
+    #             if pd.isna(val):
+    #                 continue
+    #             idx_vals = frame_data.dataframe.index.get_level_values(label)
+    #             if any(char in str(val) for char in ['*', '?', '[']):
+    #                 mask &= [fnmatch.fnmatch(str(idx_val), str(val))
+    #                          for idx_val in idx_vals]
+    #             else:
+    #                 mask &= [str(idx_val) == str(val) for idx_val in idx_vals]
+    #         for value_col in value_cols:
+    #             frame_data.dataframe.loc[mask, value_col] = row[value_col]
+    #     for value_col in value_cols:
+    #         if value_col not in frame_data.dataframe.columns:
+    #             frame_data.dataframe[value_col] = pd.NA
 
     # --- Measurements ---
     measure = mr.Measure()
