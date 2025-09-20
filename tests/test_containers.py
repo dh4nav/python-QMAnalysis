@@ -17,7 +17,7 @@ def test_atomdata_init_empty():
 
 def test_atomdata_add_row():
     atom = AtomData()
-    idx = ('file1', '/path/to/file1', 'init', 0)
+    idx = ('file1', '/path/to/file1', 'init', 1)
     atom.dataframe.loc[idx] = ["C", "CA", 0, 0.0, 1.0, 2.0]
     assert atom.dataframe.loc[idx, "element"] == "C"
     assert atom.dataframe.loc[idx, "alias"] == "CA"
@@ -61,8 +61,8 @@ def test_measurementdata_add_row_and_column():
 
 def test_atomdata_multiple_rows():
     atom = AtomData()
-    idx1 = ('file1', '/path/to/file1', 'init', 0)
-    idx2 = ('file1', '/path/to/file1', 'init', 1)
+    idx1 = ('file1', '/path/to/file1', 'init', 1)
+    idx2 = ('file1', '/path/to/file1', 'init', 2)
     atom.dataframe.loc[idx1] = ["C", "CA", 0, 0.0, 1.0, 2.0]
     atom.dataframe.loc[idx2] = ["H", "HA", 0, 1.0, 2.0, 3.0]
     assert len(atom.dataframe) == 2

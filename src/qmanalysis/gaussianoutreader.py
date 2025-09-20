@@ -72,7 +72,7 @@ class GaussianOutFile:
             except Exception:
                 continue
             element = self._atomic_number_to_symbol(atomic_num)
-            atom_index = len(atoms)
+            atom_index = len(atoms) + 1
             alias = str(atom_index)
             charge = None
             atoms.append((element, x, y, z, alias, charge))

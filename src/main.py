@@ -134,7 +134,7 @@ def circler(marker_positions, other_positions, radius, x_axis_start=0.0, y_axis_
         best_energy = np.inf
         for _ in range(n_starts):
             theta0 = np.random.rand(len(centers)) * 2 * np.pi
-            res = minimize(energy, theta0, method="Powell")
+            res = minimize(energy, theta0, method="BFGS")
             if res.fun < best_energy:
                 best_energy = res.fun
                 best_result = res
@@ -316,6 +316,7 @@ def main():
             return val is None or (isinstance(val, float) and pd.isna(val)) or (isinstance(val, str) and val.strip() == "")
         try:
             idx = int(label)
+            # 1-based: no adjustment needed, just match directly
             file_mask = np.ones(len(atom_data.dataframe), dtype=bool) if match_all(file_val) else (
                 atom_data.dataframe.index.get_level_values("file_name") == file_val)
             timestep_mask = np.ones(len(atom_data.dataframe), dtype=bool) if match_all(timestep_val) else (

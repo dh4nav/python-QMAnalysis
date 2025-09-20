@@ -65,7 +65,7 @@ class XYZFile:
             "file_comment": comment
         }
 
-        for atom_index, line in enumerate(atom_lines[:atom_count]):
+        for atom_index, line in enumerate(atom_lines[:atom_count], start=1):
             tokens = line.split()
             if len(tokens) < 4:
                 raise ValueError(

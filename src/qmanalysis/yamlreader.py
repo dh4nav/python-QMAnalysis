@@ -59,6 +59,7 @@ class YAMLFile:
                         Map({
                             Optional("file"): Str(),
                             Optional("timestep"): Str(),
+                            # atom_index is 1-based (first atom is 1)
                             "atom_index": Int(),
                             Optional("glob"): Bool()
                         })
