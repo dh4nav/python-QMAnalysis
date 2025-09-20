@@ -100,28 +100,47 @@ def circler(marker_positions, other_positions, radius, x_axis_start=0.0, y_axis_
 
     def energy(thetas, centers=centers, radii=radii):
         points = get_points(thetas, centers, radii)
-        n = len(points)
-        e = 0.0
-        for i in range(n):
-            for j in range(i + 1, n):
-                d = np.linalg.norm(points[i] - points[j])
-                e += 1.0 / (d**2 + 1e-9)
-        for p in points:
-            e += g(p)
-        return e
+        # Vectorized pairwise repulsion
+        diff = points[:, np.newaxis, :] - points[np.newaxis, :, :]
+        # add eye to avoid zero division
+        dists = np.linalg.norm(diff, axis=-1) + np.eye(len(points))
+        mask = ~np.eye(len(points), dtype=bool)
+        repulsion = np.sum(1.0 / (dists[mask]**2 + 1e-9))
+        # Vectorized g(p) sum
+        x = points[:, 0]
+        y = points[:, 1]
+        point_strength = 500.0
+        wall_strength = 500000.0
+        # Repulsion from all centers (including self, but that's ok for energy landscape)
+        center_repulsion = np.zeros(len(points))
+        for (cx, cy), r in zip(centers, radii):
+            d = np.sqrt((x - cx)**2 + (y - cy)**2)
+            center_repulsion += point_strength / (d**6 + 1e-9)
+        wall_penalty = (wall_strength / (x + 1e-9)
+                        + wall_strength / (1.0 - x + 1e-9)
+                        + wall_strength / (y + 1e-9)
+                        + wall_strength / (1.0 - y + 1e-9))
+        diag_penalty = 0.0
+        if diagonal_line:
+            diag_strength = 500.0
+            diag_penalty = diag_strength / \
+                ((np.linalg.norm(
+                    points - np.stack([(x + y) / 2.0, (x + y) / 2.0], axis=1), axis=1)**4) + 1e-9)
+        g_sum = np.sum(center_repulsion + wall_penalty + diag_penalty)
+        return repulsion + g_sum
 
     def find_best_config(n_starts=20):
         best_result = None
         best_energy = np.inf
         for _ in range(n_starts):
             theta0 = np.random.rand(len(centers)) * 2 * np.pi
-            res = minimize(energy, theta0, method="BFGS")
+            res = minimize(energy, theta0, method="Powell")
             if res.fun < best_energy:
                 best_energy = res.fun
                 best_result = res
         return best_result
 
-    res = find_best_config(n_starts=30)
+    res = find_best_config(n_starts=20)
     print("Best energy:", res.fun)
     print("Optimal angles:", res.x)
     return upscaler(get_points(res.x), x_axis_start, x_axis_end, y_axis_start, y_axis_end)
@@ -535,7 +554,7 @@ def main():
                         label_override = marker_map.get(
                             fname, {}).get('label', None)
                         fillstyle = marker_fillstyles.get(marker_base, 'full')
-                        group_threshold = 0.05
+                        group_threshold = 0.01
                         label_offset_data = x_axis_range * label_offset_percentage
                         label_stack_offset = x_axis_range * label_offset_percentage
                         all_marker_positions = [(row[xcol.name], row[ycol.name]) for i, (xcol, ycol) in enumerate(
