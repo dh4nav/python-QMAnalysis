@@ -48,8 +48,8 @@ measurements:
       c: 6
       d: 7
 calc:
-  - name: gork
-    expr: "pi * H-O-H * 5.0"
+  - name: energy
+    expr: "(6.0 * Eh2o_kcalmol)+(HF * )"
   - name: böp
     expr: "np.sqrt(pi * H-O-H)"
   - name: böps
@@ -64,11 +64,15 @@ output:
       type: csv_tuples   
   - graph:
       - type: scatter_plot
-        x: H-O-H
-        y: pi
-        series_by: file_name      # group series by file_name
-        parallel_by: timestep_name # parallel series by timestep_name
-        file: ./series_plot.tiff
-        file_format: tiff
+        y:
+          - 'H-O-H'
+          - 'H-O-N'
+        x: 'torsion1'
+        x_label: "torsion1"
+        y_label:
+          - "H-O-H"
+          - "H-O-N"
+        file: ./series_plot.png
+        file_format: png
         dpi: 300
   

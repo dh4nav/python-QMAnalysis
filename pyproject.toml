@@ -24,6 +24,7 @@ packages = [{include = "qmanalysis", from = "src"}]
 [tool.poetry.scripts]
 qmanalysis = "main:main"
 docs-build = "scripts.docs_build:main"
+makexyz = "tools.makexyz:main"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
