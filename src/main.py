@@ -77,7 +77,7 @@ def circler(marker_positions, other_positions, radius, x_axis_start=0.0, y_axis_
     def g(point, others=others, diagonal_line=diagonal_line):
         x, y = point
         e = 0.0
-        point_strength = 500.0
+        point_strength = 5000.0
         for i, ((cx, cy), r) in enumerate(zip(centers, radii)):
             d = np.linalg.norm(point - np.array([cx, cy]))
             e += point_strength / (d**6 + 1e-9)  # repulsion from circle center
