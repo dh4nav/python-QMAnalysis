@@ -577,7 +577,7 @@ def main():
                         label_override = marker_map.get(
                             fname, {}).get('label', None)
                         fillstyle = marker_fillstyles.get(marker_base, 'full')
-                        group_threshold = 0.01
+                        group_threshold = 0.05
                         label_offset_data = x_axis_range * label_offset_percentage
                         label_stack_offset = x_axis_range * label_offset_percentage
                         all_marker_positions = [(row[xcol.name], row[ycol.name]) for i, (xcol, ycol) in enumerate(
