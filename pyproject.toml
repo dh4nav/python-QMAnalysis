@@ -15,7 +15,6 @@ dependencies = [
     "matplotlib (>=3.10.3,<4.0.0)",
     "asteval (>=1.0.6,<2.0.0)",
     "openpyxl (>=3.1.5,<4.0.0)"
-    ,"beepy"
 ]
 
 [tool.poetry]

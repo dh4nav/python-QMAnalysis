@@ -715,13 +715,13 @@ def main():
                         fig.savefig(file_out, dpi=graph.get(
                             "dpi", 300), format=fmt)
 
-        # Place beep at the very end, after all processing and exporting
-    if yamldata.get('ping', False):
-        try:
-            import beepy
-            beepy.beep()
-        except ImportError:
-            print('beepy not installed, cannot beep')
+    #     # Place beep at the very end, after all processing and exporting
+    # if yamldata.get('ping', False):
+    #     try:
+    #         import beepy
+    #         beepy.beep()
+    #     except ImportError:
+    #         print('beepy not installed, cannot beep')
 
 
 def prune_close_positions(positions, threshold, x_scale=1.0, y_scale=1.0):
