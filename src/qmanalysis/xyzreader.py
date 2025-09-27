@@ -60,8 +60,8 @@ class XYZFile:
 
         self.timestep_data.dataframe.loc[(self.file_name, self.file_path, self.timestep_name)] = {
             "raw_data": "\n".join(lines),
-            "energy": None,
-            "zero-point energy": None,
+            "energy": pd.NA,
+            "zero-point energy": pd.NA,
             "file_comment": comment
         }
 
