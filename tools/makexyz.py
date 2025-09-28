@@ -13,6 +13,9 @@ Extensive comments have been added for clarity.
 
 import re
 import math
+import argparse
+import os
+import sys
 
 MAXATM = 1000
 MAXBUF = 1000000
@@ -300,41 +303,111 @@ def parse_gaussian_output(lines):
                     )
 
 
-def main():
-    import sys
-    import io
-    import contextlib
-    import os
+def get_xyz_filename(input_file):
+    base, ext = os.path.splitext(input_file)
+    if ext == ".out":
+        return base + ".xyz"
+    else:
+        return input_file + ".xyz"
 
-    if len(sys.argv) < 2:
-        print("Usage: python makexyz.py <gaussian_output_file> [output.xyz]")
+
+def process_file(input_file, output_file, force=False, to_stdout=False):
+    if not to_stdout and os.path.exists(output_file) and not force:
+        print(
+            f"Error: Output file '{output_file}' already exists. Use --force to overwrite.", file=sys.stderr)
         return
-    input_file = sys.argv[1]
     with open(input_file, "r") as f:
         lines = f.readlines()
-
-    # Capture output of parse_gaussian_output
-    buf = io.StringIO()
+    from io import StringIO
+    import contextlib
+    buf = StringIO()
     with contextlib.redirect_stdout(buf):
         parse_gaussian_output(lines)
-    output = buf.getvalue()
-
-    # Determine output file name
-    if len(sys.argv) > 2:
-        output_file = sys.argv[2]
+    if to_stdout:
+        print(buf.getvalue(), end="")
     else:
-        # Always write an output file if no output filename is given
-        # Use input filename + ".xyz" (even if it has no extension)
-        base, ext = os.path.splitext(input_file)
-        if ext.lower() == ".xyz":
-            output_file = input_file
-        else:
-            output_file = input_file + ".xyz"
-
-    # Write to file if specified or inferred, else print
-    if output_file:
         with open(output_file, "w") as outf:
-            outf.write(output)
+            outf.write(buf.getvalue())
+        print(f"Wrote {output_file}")
+
+
+def process_directory(directory, force=False, recurse=False):
+    for root, dirs, files in os.walk(directory):
+        for fname in files:
+            if fname.endswith(".out"):
+                in_path = os.path.join(root, fname)
+                out_path = os.path.join(root, get_xyz_filename(fname))
+                if os.path.exists(out_path) and not force:
+                    print(
+                        f"Error: Output file '{out_path}' already exists. Use --force to overwrite.", file=sys.stderr)
+                    continue
+                process_file(in_path, out_path, force=force)
+        if not recurse:
+            break
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Convert Gaussian .out files to .xyz format.\n\n"
+        "USAGE MODES:\n"
+        "  1. Single file: Provide one argument (the input file). The output .xyz file will be named as the input file with '.out' removed (if present) and '.xyz' appended. "
+        "If the output file exists, it will not be overwritten unless --force is specified.\n"
+        "  2. Custom output: Provide two arguments (input and output file names). The output file will be written as specified. "
+        "If the output file exists, it will not be overwritten unless --force is specified.\n"
+        "  3. Directory mode: Use --dir/-d and provide a directory as the first argument. All .out files in the directory will be converted to .xyz files (with '.out' removed and '.xyz' appended). "
+        "Existing .xyz files will not be overwritten unless --force is specified.\n"
+        "  4. Recursive directory mode: Use --recurse/-r (implies --dir) to process all .out files in the directory and its subdirectories recursively.\n"
+        "  5. Stdout mode: Use --stdout/-s to print the result to stdout instead of writing to a file.\n\n"
+        "FLAGS:\n"
+        "  -f, --force    Overwrite existing .xyz files.\n"
+        "  -d, --dir      Treat the input as a directory and process all .out files within.\n"
+        "  -r, --recurse  Recurse into subdirectories (implies --dir).\n"
+        "  -s, --stdout   Print result to stdout instead of writing to a file.\n",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument("input", nargs="?",
+                        help="Input .out file or directory")
+    parser.add_argument("output", nargs="?",
+                        help="Output .xyz file (optional, only for single file mode)")
+    parser.add_argument("-f", "--force", action="store_true",
+                        help="Overwrite existing files")
+    parser.add_argument("-d", "--dir", action="store_true",
+                        help="Process all .out files in directory")
+    parser.add_argument("-r", "--recurse", action="store_true",
+                        help="Recurse into subdirectories (implies --dir)")
+    parser.add_argument("-s", "--stdout", action="store_true",
+                        help="Print result to stdout instead of writing to a file")
+    args = parser.parse_args()
+
+    # Make -r imply -d
+    if args.recurse:
+        args.dir = True
+
+    if args.dir:
+        if args.stdout:
+            print("Error: --stdout cannot be used with --dir/--recurse.",
+                  file=sys.stderr)
+            sys.exit(1)
+        if not args.input or not os.path.isdir(args.input):
+            print(
+                "Error: Please specify a directory to process with --dir or --recurse.", file=sys.stderr)
+            sys.exit(1)
+        process_directory(args.input, force=args.force, recurse=args.recurse)
+    elif args.input:
+        input_file = args.input
+        if not os.path.isfile(input_file):
+            print(
+                f"Error: Input file '{input_file}' does not exist.", file=sys.stderr)
+            sys.exit(1)
+        if args.output:
+            output_file = args.output
+        else:
+            output_file = get_xyz_filename(input_file)
+        process_file(input_file, output_file,
+                     force=args.force, to_stdout=args.stdout)
+    else:
+        parser.print_help()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
