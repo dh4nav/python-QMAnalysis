@@ -2,6 +2,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+        "name": "Python: makexyz",
+        "type": "python",
+        "request": "launch",
+        "program": "${workspaceFolder}/tools/makexyz.py",
+        "console": "integratedTerminal",
+        "args": [
+            "testdata/Rudi80_Ursula/Min222bipyran/222bipyran.out"
+        ]
+        },
+        {
             "name": "Debug qmanalysis with Poetry",
             "type": "debugpy",
             "request": "launch",
