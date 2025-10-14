@@ -753,7 +753,8 @@ def main():
                         print(
                             f'Setting legend with handles: {legend_handles}')
                         ax.legend(handles=legend_handles, loc=graph.get(
-                            'legend_loc', 'best'))
+                            'legend_loc', 'best'), prop={'family': graph.get('legendfont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('legendfont', graph.get('font', {'size': 8})).get('size', 8)})
+
                         # fig.tight_layout()
                     file_base = prepend_root_if_relative(
                         file_path=graph['file'], root_path=args.root_path)
