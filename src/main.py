@@ -754,7 +754,7 @@ def main():
                             f'Setting legend with handles: {legend_handles}')
                         ax.legend(handles=legend_handles, loc=graph.get(
                             'legend_loc', 'best'))
-                        fig.tight_layout()
+                        # fig.tight_layout()
                     file_base = prepend_root_if_relative(
                         file_path=graph['file'], root_path=args.root_path)
                     file_formats = graph.get("file_format", "tiff")
