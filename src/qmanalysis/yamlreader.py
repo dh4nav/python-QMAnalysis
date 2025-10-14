@@ -177,6 +177,13 @@ class YAMLFile:
                                     })
                                 })
                             ),
+                            Optional("legend"): Seq(
+                                Map({
+                                    "label": Str(),
+                                    "text": Str()
+                                })
+                            ),
+                            Optional("legend_loc"): Str(),
                         })
                     ),
                     Optional("file"): Seq(

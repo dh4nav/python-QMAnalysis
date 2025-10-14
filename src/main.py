@@ -18,7 +18,7 @@ from scipy.optimize import minimize
 
 import qmanalysis.customcalculationrunner as ccr
 from qmanalysis.gaussianoutreader import GaussianOutFile
-from tests.test_customcalculationrunner import frame_data
+# from tests.test_customcalculationrunner import frame_data
 
 
 def prepend_root_if_relative(file_path, root_path=None):
@@ -663,8 +663,57 @@ def main():
                             marker_and_label_data[idx]["label_position"] = opt_pos
                     label_bboxes = []
                     print(f'Plotting markers and labels... ')
+                    # --- Legend support ---
+                    legend_entries = graph.get('legend', [])
+                    legend_handles = []
+                    legend_labels = []
+                    print(legend_entries)
+                    # Build a mapping from label to marker type for legend
+                    legend_label_marker_map = {}
+                    for legend_entry in legend_entries:
+                        label = legend_entry.get('label')
+                        text = legend_entry.get('text')
+                        marker_type = []
+                        for d in marker_and_label_data:
+                            if "label_text" in d and d["label_text"] == label:
+                                marker_type.append(d["marker_type"])
+                                break
+                        if marker_type == []:
+                            for ncm in name_column_marker_map:
+                                if label in ncm.get('name', []):
+                                    marker_type.append(
+                                        ncm['substitution'].get('marker', None))
+                                    break
+                        if marker_type == []:
+                            for col_key, col_map in column_marker_map.items():
+                                if label == col_map.get('label', None):
+                                    marker_type.append(
+                                        col_map.get('marker', None))
+                                    break
+                        if marker_type == []:
+                            for ncm in name_column_marker_map:
+                                if label in ncm.get('columns', []):
+                                    marker_type.append(
+                                        ncm['substitution'].get('marker', None))
+                        if marker_type == []:
+                            for col_key, col_map in column_marker_map.items():
+                                if label == col_map.get('label', None):
+                                    marker_type.append(
+                                        col_map.get('marker', None))
+                        if marker_type != []:
+                            for this_marker in marker_type:
+                                legend_label_marker_map[label] = this_marker
+                                if marker_fillstyles[this_marker] == 'none':
+                                    legend_handles.append(plt.Line2D(
+                                        [0], [0], marker=this_marker, linestyle='None',
+                                        markerfacecolor='none', markeredgecolor='black', markersize=7))
+                                else:
+                                    legend_handles.append(plt.Line2D(
+                                        [0], [0], marker=this_marker, linestyle='None',
+                                        markerfacecolor='black', markeredgecolor='black', markersize=7))
+                                legend_labels.append(text)
+
                     for i, marker_and_label in enumerate(marker_and_label_data):
-                        print(f'M1: {marker_and_label}')
                         (x, y) = marker_and_label["marker_position"]
                         if marker_fillstyles[marker_and_label["marker_type"]] == 'none':
                             ax.scatter(
@@ -714,6 +763,11 @@ def main():
                             file_out += ext
                         fig.savefig(file_out, dpi=graph.get(
                             "dpi", 300), format=fmt)
+                    if legend_handles:
+                        print(
+                            f'Setting legend with handles: {legend_handles} and labels: {legend_labels}')
+                        ax.legend(handles=legend_handles, labels=legend_labels, loc=graph.get(
+                            'legend_loc', 'best'))
 
     #     # Place beep at the very end, after all processing and exporting
     # if yamldata.get('ping', False):
