@@ -158,6 +158,10 @@ class YAMLFile:
                                 Optional("family"): Str(),
                                 Optional("size"): Int()
                             }),
+                            Optional("legendfont"): Map({
+                                Optional("family"): Str(),
+                                Optional("size"): Int()
+                            }),
                             Optional("marker_map"): MapPattern(Str(), Map({
                                 "marker": Str(),
                                 Optional("label"): Str()
