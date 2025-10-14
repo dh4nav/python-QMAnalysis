@@ -778,26 +778,5 @@ def main():
     #         print('beepy not installed, cannot beep')
 
 
-def prune_close_positions(positions, threshold, x_scale=1.0, y_scale=1.0):
-    # Given a list of positions [(x1, y1), (x2, y2), ...] and a threshold,
-    # return a new list where positions closer than the threshold are grouped and replaced by their centroid.
-
-    positions = np.array(positions)
-    used = np.ones(len(positions), dtype=bool)
-    if (len(positions) == 1):
-        return used
-
-    for i in range(len(positions)):
-        for j in range(len(positions)):
-            if i != j:
-                # print(
-                #     f'comparing {i} and {j}: {positions[i]} vs {positions[j]} ({used[i]}, {used[j]}) => {positions[i] - positions[j]} => {((positions[i] - positions[j]) / np.array([x_scale, y_scale]))} => {np.linalg.norm((positions[i] - positions[j]) / np.array([x_scale, y_scale]))}')
-
-                if used[i] and used[j] and np.linalg.norm((positions[i] - positions[j]) / np.array([x_scale, y_scale])) < threshold:
-                    used[j] = False
-    # print(f"Pruning positions: {positions} -> {used}")
-    return used
-
-
 if __name__ == "__main__":
     main()
