@@ -706,12 +706,12 @@ def main():
                                 if marker_fillstyles[this_marker] == 'none':
                                     legend_handles.append(plt.Line2D(
                                         [0], [0], marker=this_marker, linestyle='None',
-                                        markerfacecolor='none', markeredgecolor='black', markersize=7))
+                                        markerfacecolor='none', markeredgecolor='black', markersize=7, label=text))
                                 else:
                                     legend_handles.append(plt.Line2D(
                                         [0], [0], marker=this_marker, linestyle='None',
-                                        markerfacecolor='black', markeredgecolor='black', markersize=7))
-                                legend_labels.append(text)
+                                        markerfacecolor='black', markeredgecolor='black', markersize=7, label=text))
+                                # legend_labels.append(text)  # Not needed
 
                     for i, marker_and_label in enumerate(marker_and_label_data):
                         (x, y) = marker_and_label["marker_position"]
@@ -749,6 +749,12 @@ def main():
                     if "title" in graph and graph["title"]:
                         ax.set_title(graph["title"],
                                      fontdict={'family': graph.get('titlefont', graph.get('font', {'family': 'serif'})).get('family', 'serif'), 'size': graph.get('titlefont', graph.get('font', {'size': 12})).get('size', 12)})
+                    if legend_handles:
+                        print(
+                            f'Setting legend with handles: {legend_handles}')
+                        ax.legend(handles=legend_handles, loc=graph.get(
+                            'legend_loc', 'best'))
+                        fig.tight_layout()
                     file_base = prepend_root_if_relative(
                         file_path=graph['file'], root_path=args.root_path)
                     file_formats = graph.get("file_format", "tiff")
@@ -763,11 +769,6 @@ def main():
                             file_out += ext
                         fig.savefig(file_out, dpi=graph.get(
                             "dpi", 300), format=fmt)
-                    if legend_handles:
-                        print(
-                            f'Setting legend with handles: {legend_handles} and labels: {legend_labels}')
-                        ax.legend(handles=legend_handles, labels=legend_labels, loc=graph.get(
-                            'legend_loc', 'best'))
 
     #     # Place beep at the very end, after all processing and exporting
     # if yamldata.get('ping', False):
