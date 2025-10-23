@@ -75,4 +75,9 @@ output:
         file: ./series_plot.png
         file_format: png
         dpi: 300
-  
+        legend:
+          - label: "H-O-H"
+            text: "Hydrogen-Oxygen-Hydrogen Angle"
+          - label: "H-O-N"
+            text: "Hydrogen-Oxygen-Nitrogen Angle"
+
