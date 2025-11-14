@@ -57,7 +57,7 @@ class YAMLFile:
                     "name": Str(),
                     "entries": Seq(
                         Map({
-                            Optional("file"): Str(),
+                            Optional("file"): Str() | Seq(Str()),
                             Optional("timestep"): Str(),
                             # atom_index is 1-based (first atom is 1)
                             "atom_index": Int(),

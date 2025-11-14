@@ -246,39 +246,50 @@ def main():
                 timestep_pattern = subfile.get('timestep', None)
                 atom_index = subfile.get('atom_index', None)
                 file_path_pattern = subfile.get('file_path', None)
-                idx = atom_data.dataframe.index
-                masks = []
+
+                # Handle file_pattern as either a string or a list of strings
+                file_patterns = []
                 if file_pattern is not None:
-                    if any(char in file_pattern for char in ['*', '?', '[']):
-                        masks.append([fnmatch.fnmatch(str(val), file_pattern)
-                                     for val in idx.get_level_values('file_name')])
+                    if isinstance(file_pattern, list):
+                        file_patterns = file_pattern
                     else:
+                        file_patterns = [file_pattern]
+
+                # Process each file pattern
+                for single_file_pattern in file_patterns if file_patterns else [None]:
+                    idx = atom_data.dataframe.index
+                    masks = []
+                    if single_file_pattern is not None:
+                        if any(char in single_file_pattern for char in ['*', '?', '[']):
+                            masks.append([fnmatch.fnmatch(str(val), single_file_pattern)
+                                         for val in idx.get_level_values('file_name')])
+                        else:
+                            masks.append(
+                                [str(val) == single_file_pattern for val in idx.get_level_values('file_name')])
+                    if file_path_pattern is not None:
+                        if any(char in file_path_pattern for char in ['*', '?', '[']):
+                            masks.append([fnmatch.fnmatch(str(val), file_path_pattern)
+                                         for val in idx.get_level_values('file_path')])
+                        else:
+                            masks.append(
+                                [str(val) == file_path_pattern for val in idx.get_level_values('file_path')])
+                    if timestep_pattern is not None:
+                        if any(char in timestep_pattern for char in ['*', '?', '[']):
+                            masks.append([fnmatch.fnmatch(str(val), timestep_pattern)
+                                         for val in idx.get_level_values('timestep_name')])
+                        else:
+                            masks.append(
+                                [str(val) == timestep_pattern for val in idx.get_level_values('timestep_name')])
+                    if atom_index is not None:
                         masks.append(
-                            [str(val) == file_pattern for val in idx.get_level_values('file_name')])
-                if file_path_pattern is not None:
-                    if any(char in file_path_pattern for char in ['*', '?', '[']):
-                        masks.append([fnmatch.fnmatch(str(val), file_path_pattern)
-                                     for val in idx.get_level_values('file_path')])
+                            [val == atom_index for val in idx.get_level_values('atom_index')])
+                    if masks:
+                        final_mask = pd.Series([all(vals) for vals in zip(
+                            *masks)], index=atom_data.dataframe.index)
                     else:
-                        masks.append(
-                            [str(val) == file_path_pattern for val in idx.get_level_values('file_path')])
-                if timestep_pattern is not None:
-                    if any(char in timestep_pattern for char in ['*', '?', '[']):
-                        masks.append([fnmatch.fnmatch(str(val), timestep_pattern)
-                                     for val in idx.get_level_values('timestep_name')])
-                    else:
-                        masks.append(
-                            [str(val) == timestep_pattern for val in idx.get_level_values('timestep_name')])
-                if atom_index is not None:
-                    masks.append(
-                        [val == atom_index for val in idx.get_level_values('atom_index')])
-                if masks:
-                    final_mask = pd.Series([all(vals) for vals in zip(
-                        *masks)], index=atom_data.dataframe.index)
-                else:
-                    final_mask = pd.Series(
-                        [True] * len(atom_data.dataframe), index=atom_data.dataframe.index)
-                atom_data.dataframe.loc[final_mask, "alias"] = sub["name"]
+                        final_mask = pd.Series(
+                            [True] * len(atom_data.dataframe), index=atom_data.dataframe.index)
+                    atom_data.dataframe.loc[final_mask, "alias"] = sub["name"]
 
     # # Global constants
     # global_constants_csv_file = next(
